@@ -46,12 +46,13 @@ def load_data():
                 "background": row.get("background"),
                 "state": row.get("state"),
                 "tax_rate": row.get("tax_rate"),
+                "away_periods": row.get("away_periods") or [],
             }
-        return {"goals": [], "background": None, "state": None, "tax_rate": None}
+        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": []}
     if os.path.exists(SAVE_FILE):
         with open(SAVE_FILE, "r") as f:
             return json.load(f)
-    return {"goals": [], "background": None, "state": None, "tax_rate": None}
+    return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": []}
 
 
 def save_data(data):
@@ -62,6 +63,7 @@ def save_data(data):
             "background": data.get("background"),
             "state": data.get("state"),
             "tax_rate": data.get("tax_rate"),
+            "away_periods": data.get("away_periods", []),
         }
         if result.data:
             sb.table("budget_data").update(payload).eq("id", 1).execute()
@@ -82,10 +84,57 @@ def service_worker():
     return send_from_directory("static", "sw.js", mimetype="application/javascript")
 
 
+def calc_adjusted_months(needed, spendable, away_periods):
+    """
+    Walk month by month from today. For each month, calculate how much
+    can be saved based on how many days are away vs at home.
+    Returns (months_count, away_months_info).
+    """
+    if spendable <= 0 or needed <= 0:
+        return None, []
+
+    saved = 0.0
+    months = 0
+    today = date.today()
+    away_hits = []
+
+    while saved < needed and months < 240:
+        check = date(today.year + (today.month - 1 + months) // 12,
+                     (today.month - 1 + months) % 12 + 1, 1)
+        # Days in this month
+        if check.month == 12:
+            days_in_month = (date(check.year + 1, 1, 1) - check).days
+        else:
+            days_in_month = (date(check.year, check.month + 1, 1) - check).days
+
+        away_days = 0
+        for period in away_periods:
+            p_start = date.fromisoformat(period["start"])
+            p_end   = date.fromisoformat(period["end"])
+            # Overlap with this calendar month
+            overlap_start = max(check, p_start)
+            overlap_end   = min(date(check.year + (check.month == 12),
+                                     check.month % 12 + 1, 1) - date.resolution, p_end)
+            if overlap_start <= overlap_end:
+                days = (overlap_end - overlap_start).days + 1
+                away_days += days
+                away_hits.append({
+                    "month": check.strftime("%B %Y"),
+                    "event": period["name"],
+                    "days_away": days,
+                })
+
+        home_fraction = max(0, (days_in_month - away_days) / days_in_month)
+        saved += spendable * home_fraction
+        months += 1
+
+    return round(months, 1), away_hits
+
+
 @app.route("/")
 def index():
     data = load_data()
-    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"))
+    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []))
 
 
 @app.route("/save-state", methods=["POST"])
@@ -114,6 +163,7 @@ def calculate():
 
     saved_data = load_data()
     saved_goals = {g["name"]: g for g in saved_data.get("goals", [])}
+    away_periods = saved_data.get("away_periods", [])
 
     total_monthly_payments = 0
     results = []
@@ -138,12 +188,12 @@ def calculate():
 
         if plan_type == "save":
             months_to_save = needed / spendable if spendable > 0 else None
+            adjusted_months, away_hits = calc_adjusted_months(needed, spendable, away_periods)
 
-            # Calculate months elapsed since goal was added
             added_date = date.fromisoformat(added_on)
             today_date = date.today()
             months_elapsed = (today_date.year - added_date.year) * 12 + (today_date.month - added_date.month)
-            months_remaining = max(0, round(months_to_save - months_elapsed, 1)) if months_to_save else None
+            months_remaining = max(0, round((adjusted_months or months_to_save or 0) - months_elapsed, 1))
 
             results.append({
                 "name": name,
@@ -152,10 +202,11 @@ def calculate():
                 "needed": round(needed, 2),
                 "cost": cost,
                 "tax_amount": tax_amount,
-                "months_to_save": round(months_to_save, 1) if months_to_save else None,
+                "months_to_save": adjusted_months or (round(months_to_save, 1) if months_to_save else None),
                 "months_remaining": months_remaining,
                 "months_elapsed": months_elapsed,
                 "added_on": added_on,
+                "away_hits": away_hits,
             })
 
         else:
