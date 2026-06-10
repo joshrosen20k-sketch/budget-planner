@@ -69,6 +69,8 @@
         <input type="text" id="new-name" placeholder="e.g. MacBook" />
         <label>Cost ($)</label>
         <input type="number" id="new-cost" placeholder="e.g. 1000" />
+        <label>Website URL</label>
+        <input type="url" id="new-url" placeholder="e.g. https://apple.com/macbook" />
         <label>Plan Type</label>
         <div class="toggle-group">
           <button class="toggle-btn active" data-val="save" onclick="setNewPlanType(this)">Saving Up</button>
@@ -104,18 +106,20 @@
       const cost = parseFloat(document.getElementById("new-cost").value);
       const planType = document.querySelector("#page-new-goal .toggle-btn.active").dataset.val;
       const monthly_payment = parseFloat(document.getElementById("new-payment").value) || 0;
+      const url = document.getElementById("new-url").value.trim();
 
       if (!name || !cost) {
         alert("Please fill in item name and cost.");
         return;
       }
 
-      goals.push({ name, cost, plan_type: planType, monthly_payment, added_on: "" });
+      goals.push({ name, cost, plan_type: planType, monthly_payment, url, added_on: "" });
 
       // Clear form
       document.getElementById("new-name").value = "";
       document.getElementById("new-cost").value = "";
       document.getElementById("new-payment").value = "";
+      document.getElementById("new-url").value = "";
 
       showPage("home");
     }
@@ -179,8 +183,9 @@
         panel.id = `panel-${i}`;
 
         let contentHTML = "";
+        const buyBtn = r.url ? `<a href="${r.url}" target="_blank" class="btn-buy">🛒 Buy Now</a>` : "";
         if (r.already_have) {
-          contentHTML = `<h3>${r.name}</h3><p class="green">You already have enough!</p>`;
+          contentHTML = `<h3>${r.name}</h3><p class="green">You already have enough!</p>${buyBtn}`;
         } else if ((r.plan_type || "save") === "save") {
           const progressPct = r.months_to_save ? Math.min(100, Math.round((r.months_elapsed / r.months_to_save) * 100)) : 0;
           contentHTML = `
@@ -196,6 +201,7 @@
               </div>
               <div class="progress-label">${progressPct}% of the way there</div>
             </div>
+            ${buyBtn}
           `;
         } else {
           const verdictClass = !r.can_afford ? "red" : r.total_paid > r.cost ? "yellow" : "green";
@@ -216,6 +222,7 @@
               </div>
             </div>
             <div class="verdict ${verdictClass}">${verdict}</div>
+            ${buyBtn}
           `;
         }
 
