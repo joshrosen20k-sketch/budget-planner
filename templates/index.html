@@ -37,12 +37,21 @@
       <button class="btn-secondary" onclick="showPage('new-goal')">+ New Goal</button>
     </div>
 
-    <div class="card settings-row">
-      <label class="upload-label">
+    <div class="card">
+      <h2>Tax & Settings</h2>
+      <div class="form-grid">
+        <label>Your State</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="state-input" placeholder="e.g. NY" maxlength="2" style="text-transform:uppercase;width:80px;" value="{{ state or '' }}" />
+          <button class="btn-secondary" onclick="saveState()">Save</button>
+        </div>
+        <label>Sales Tax Rate</label>
+        <span id="tax-display" class="cyan">{% if tax_rate is not none %}{{ tax_rate }}%{% else %}Not set{% endif %}</span>
+      </div>
+      <label class="upload-label" style="margin-top:14px;">
         Change Background
         <input type="file" id="bg-upload" accept="image/*" hidden />
       </label>
-      <span id="bg-filename"></span>
     </div>
 
   </div>
@@ -89,6 +98,21 @@
   <script>
     const savedGoals = {{ goals | tojson }};
     let goals = savedGoals.slice();
+    let currentTaxRate = {{ tax_rate if tax_rate is not none else 0 }};
+
+    async function saveState() {
+      const state = document.getElementById("state-input").value.trim().toUpperCase();
+      if (!state) return alert("Enter a 2-letter state code like NY or CA.");
+      const res = await fetch("/save-state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state }),
+      });
+      if (!res.ok) return alert("Unknown state. Use a 2-letter code like NY.");
+      const data = await res.json();
+      currentTaxRate = data.tax_rate;
+      document.getElementById("tax-display").textContent = `${data.tax_rate}% (${data.state})`;
+    }
 
     function showPage(name) {
       document.querySelectorAll(".container").forEach(el => el.classList.add("hidden"));
@@ -145,7 +169,7 @@
       const res = await fetch("/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ balance, monthly_income, monthly_expenses, goals }),
+        body: JSON.stringify({ balance, monthly_income, monthly_expenses, goals, tax_rate: currentTaxRate }),
       });
 
       const data = await res.json();
@@ -195,7 +219,7 @@
               <div class="option-title green">Saving Up</div>
               <div class="option-row"><span>Total time needed</span><span>${timeString(r.months_to_save)}</span></div>
               <div class="option-row"><span>Time remaining</span><span class="cyan">${timeString(r.months_remaining)}</span></div>
-              <div class="option-row"><span>Total cost</span><span>$${r.cost.toFixed(2)}</span></div>
+              <div class="option-row"><span>Price + tax</span><span>$${r.cost.toFixed(2)} <span class="yellow">(+$${(r.tax_amount||0).toFixed(2)} tax)</span></span></div>
               <div class="progress-bar-wrap">
                 <div class="progress-bar-fill" style="width: ${progressPct}%"></div>
               </div>
@@ -216,7 +240,8 @@
             <div class="option full-width">
               <div class="option-title purple">Payment Plan</div>
               <div class="option-row"><span>Monthly payment</span><span>$${(r.monthly_payment||0).toFixed(2)} × ${r.num_payments || 0} months</span></div>
-              <div class="option-row"><span>Total cost</span><span>$${(r.total_paid||0).toFixed(2)}</span></div>
+              <div class="option-row"><span>Price + tax</span><span>$${r.cost.toFixed(2)} <span class="yellow">(+$${(r.tax_amount||0).toFixed(2)} tax)</span></span></div>
+              <div class="option-row"><span>Total paid</span><span>$${(r.total_paid||0).toFixed(2)}</span></div>
               <div class="option-row"><span>${r.can_afford ? "Leftover/month" : "Shortage/month"}</span>
                 <span class="${r.can_afford ? 'green' : 'red'}">${r.can_afford ? '+' : '-'}$${r.can_afford ? r.leftover.toFixed(2) : r.shortage.toFixed(2)}</span>
               </div>
