@@ -1,4 +1,4 @@
-const CACHE = "budget-v1";
+const CACHE = "budget-v3";
 const ASSETS = ["/", "/static/style.css"];
 
 self.addEventListener("install", e => {
