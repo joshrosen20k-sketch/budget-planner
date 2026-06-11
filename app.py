@@ -353,6 +353,27 @@ def subscribe():
     return jsonify({"ok": True})
 
 
+@app.route("/weekly-allowance-reminder", methods=["POST"])
+def weekly_allowance_reminder():
+    if not VAPID_PRIVATE_KEY:
+        return jsonify({"error": "Push not configured"}), 500
+    data = load_data()
+    sub = data.get("push_subscription")
+    if not sub:
+        return jsonify({"error": "No subscription"}), 400
+    try:
+        from pywebpush import webpush
+        webpush(
+            subscription_info=sub,
+            data=json.dumps({"title": "💰 Allowance time!", "body": "Don't forget to log your allowance this week — tap to add it!"}),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=VAPID_CLAIMS,
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/send-reminder", methods=["POST"])
 def send_reminder():
     if not VAPID_PRIVATE_KEY:
