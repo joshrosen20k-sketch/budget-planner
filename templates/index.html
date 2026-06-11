@@ -65,7 +65,7 @@
     </div>
     <div style="display:flex;gap:10px;margin-bottom:20px;">
       <button class="btn-primary" onclick="addSavings()" style="margin-bottom:0;">➕ I saved money!</button>
-      <button class="btn-secondary" id="notify-btn" onclick="enableNotifications()">🔔 Remind me</button>
+      <button class="btn-secondary" id="notify-btn" onclick="enableNotifications()" style="white-space:nowrap">🔔 Remind me</button>
     </div>
     <div id="results"></div>
   </div>
@@ -209,7 +209,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sub),
       });
-      document.getElementById("notify-btn").textContent = "🔔 Send reminder now";
+      document.getElementById("notify-btn").textContent = "📲 Send reminder";
       document.getElementById("notify-btn").onclick = sendReminder;
       showToast("🔔 Reminders enabled!");
     }
@@ -361,13 +361,13 @@
 
         let contentHTML = "";
         const buyBtn = r.url ? `<a href="${r.url}" target="_blank" class="btn-buy">🛒 Buy Now</a>` : "";
-        const badge = r.is_priority ? `<span class="priority-badge">⭐ Get this first!</span>` : "";
+        const badge = r.is_priority ? `<div class="priority-badge">⭐ Get this first!</div>` : "";
         if (r.already_have) {
-          contentHTML = `<div class="reached-banner">🎉 Goal Reached!</div><h3>${r.name}${badge}</h3><p class="green">You already have enough!</p>${buyBtn}`;
+          contentHTML = `<div class="reached-banner">🎉 Goal Reached!</div><h3 style="padding-right:160px">${r.name}</h3>${badge}<p class="green">You already have enough!</p>${buyBtn}`;
         } else if ((r.plan_type || "save") === "save") {
           const progressPct = r.months_to_save ? Math.min(100, Math.round((r.months_elapsed / r.months_to_save) * 100)) : 0;
           contentHTML = `
-            <h3>${r.name}${badge}</h3>
+            <h3 style="padding-right:160px">${r.name}</h3>${badge}
             <p class="needed">You need <strong>$${r.needed.toFixed(2)}</strong> more.</p>
             <div class="option full-width">
               <div class="option-title green">Saving Up</div>
@@ -390,7 +390,7 @@
           else verdict = "Payment plan costs the same — get it now if you want.";
 
           contentHTML = `
-            <h3>${r.name}${badge}</h3>
+            <h3 style="padding-right:160px">${r.name}</h3>${badge}
             <p class="needed">You need <strong>$${r.needed.toFixed(2)}</strong> more.</p>
             <div class="option full-width">
               <div class="option-title purple">Payment Plan</div>
