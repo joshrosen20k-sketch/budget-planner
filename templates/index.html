@@ -66,6 +66,34 @@
     <div id="results"></div>
   </div>
 
+  <!-- EDIT MODAL -->
+  <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(5,10,30,0.85);display:none;align-items:center;justify-content:center;">
+    <div class="card" style="width:340px;max-width:90vw;">
+      <h2>Edit Goal</h2>
+      <div class="form-grid">
+        <label>Item Name</label>
+        <input type="text" id="edit-name" />
+        <label>Cost ($)</label>
+        <input type="number" id="edit-cost" />
+        <label>Website URL</label>
+        <input type="url" id="edit-url" />
+        <label>Plan Type</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-val="save" onclick="setEditPlanType(this)">Saving Up</button>
+          <button class="toggle-btn" data-val="payment" onclick="setEditPlanType(this)">Payment Plan</button>
+        </div>
+      </div>
+      <div id="edit-payment-fields" class="payment-fields" style="display:none">
+        <label>Monthly Payment ($)</label>
+        <input type="number" id="edit-payment" />
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn-primary" style="margin-bottom:0" onclick="saveEditGoal()">Save Changes</button>
+        <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- NEW GOAL PAGE -->
   <div class="container hidden" id="page-new-goal">
     <div class="page-header">
@@ -155,6 +183,51 @@
       if (months < 12) return `${months.toFixed(1)} months`;
       const years = (months / 12).toFixed(1);
       return `${years} years (${Math.round(months)} months)`;
+    }
+
+    let editingIndex = null;
+
+    function openEditModal(r) {
+      editingIndex = r.goal_index;
+      const goal = goals[editingIndex];
+      document.getElementById("edit-name").value = goal.name;
+      document.getElementById("edit-cost").value = goal.cost;
+      document.getElementById("edit-url").value = goal.url || "";
+      document.getElementById("edit-payment").value = goal.monthly_payment || "";
+      const planType = goal.plan_type || "save";
+      document.querySelectorAll("#edit-modal .toggle-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.val === planType);
+      });
+      document.getElementById("edit-payment-fields").style.display = planType === "payment" ? "grid" : "none";
+      document.getElementById("edit-modal").style.display = "flex";
+    }
+
+    function closeEditModal() {
+      document.getElementById("edit-modal").style.display = "none";
+      editingIndex = null;
+    }
+
+    function setEditPlanType(btn) {
+      document.querySelectorAll("#edit-modal .toggle-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("edit-payment-fields").style.display = btn.dataset.val === "payment" ? "grid" : "none";
+    }
+
+    async function saveEditGoal() {
+      const name = document.getElementById("edit-name").value.trim();
+      const cost = parseFloat(document.getElementById("edit-cost").value);
+      const planType = document.querySelector("#edit-modal .toggle-btn.active").dataset.val;
+      const monthly_payment = parseFloat(document.getElementById("edit-payment").value) || 0;
+      const url = document.getElementById("edit-url").value.trim();
+      if (!name || !cost) return alert("Name and cost are required.");
+      await fetch("/edit-goal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index: editingIndex, name, cost, plan_type: planType, monthly_payment, url }),
+      });
+      goals[editingIndex] = { ...goals[editingIndex], name, cost, plan_type: planType, monthly_payment, url };
+      closeEditModal();
+      calculate();
     }
 
     async function addSavings() {
@@ -282,6 +355,13 @@
 
         panel.style.position = "relative";
         panel.innerHTML = contentHTML;
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "btn-secondary";
+        editBtn.textContent = "✏️ Edit";
+        editBtn.style.cssText = "position:absolute; top:16px; right:90px; padding:6px 14px; font-size:0.8rem;";
+        editBtn.onclick = () => openEditModal(r);
+        panel.appendChild(editBtn);
 
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "btn-delete-goal";

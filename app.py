@@ -300,6 +300,21 @@ def upload_background():
     return jsonify({"background": f"uploads/{filename}"})
 
 
+@app.route("/edit-goal", methods=["POST"])
+def edit_goal():
+    body = request.json
+    index = body["index"]
+    data = load_data()
+    goal = data["goals"][index]
+    goal["name"] = body.get("name", goal["name"])
+    goal["cost"] = float(body.get("cost", goal["cost"]))
+    goal["plan_type"] = body.get("plan_type", goal.get("plan_type", "save"))
+    goal["monthly_payment"] = float(body.get("monthly_payment") or 0)
+    goal["url"] = body.get("url", goal.get("url", ""))
+    save_data(data)
+    return jsonify({"ok": True})
+
+
 @app.route("/delete-goal", methods=["POST"])
 def delete_goal():
     body = request.json
