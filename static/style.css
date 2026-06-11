@@ -513,7 +513,6 @@ body {
 }
 
 .btn-delete-goal {
-  float: right;
   background: transparent;
   border: 1px solid rgba(252, 129, 129, 0.4);
   color: #fc8181;
