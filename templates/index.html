@@ -15,6 +15,7 @@
 <body id="app" {% if background %}style="background-image: url('/static/{{ background }}');"{% endif %}>
 
   <div class="overlay"></div>
+  <div class="toast" id="toast"></div>
 
   <!-- HOME PAGE -->
   <div class="container" id="page-home">
@@ -185,6 +186,15 @@
       return `${years} years (${Math.round(months)} months)`;
     }
 
+    let toastTimer = null;
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("show"), 3500);
+    }
+
     let editingIndex = null;
 
     function openEditModal(r) {
@@ -270,9 +280,12 @@
       if (results.length === 0) return;
 
       // Celebrate any reached goals
-      if (results.some(r => r.already_have)) {
+      const reached = results.filter(r => r.already_have);
+      if (reached.length) {
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
         setTimeout(() => confetti({ particleCount: 80, spread: 120, origin: { y: 0.3 } }), 400);
+        const names = reached.map(r => r.name).join(" & ");
+        showToast(`🎉 You can afford ${names}!`);
       }
 
       // Total dashboard (adds up all goals)
