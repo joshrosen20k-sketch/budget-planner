@@ -54,8 +54,10 @@ def load_data():
                 "balance": row.get("balance") or 0,
                 "push_subscription": row.get("push_subscription"),
                 "savings_history": row.get("savings_history") or [],
+                "monthly_income": row.get("monthly_income") or 0,
+                "monthly_expenses": row.get("monthly_expenses") or 0,
             }
-        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0, "savings_history": []}
+        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0, "savings_history": [], "monthly_income": 0, "monthly_expenses": 0}
     if os.path.exists(SAVE_FILE):
         with open(SAVE_FILE, "r") as f:
             return json.load(f)
@@ -74,6 +76,8 @@ def save_data(data):
             "balance": data.get("balance", 0),
             "push_subscription": data.get("push_subscription"),
             "savings_history": data.get("savings_history", []),
+            "monthly_income": data.get("monthly_income", 0),
+            "monthly_expenses": data.get("monthly_expenses", 0),
         }
         if result.data:
             sb.table("budget_data").update(payload).eq("id", 1).execute()
@@ -144,7 +148,7 @@ def calc_adjusted_months(needed, spendable, away_periods):
 @app.route("/")
 def index():
     data = load_data()
-    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []))
+    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []), monthly_income=data.get("monthly_income", 0), monthly_expenses=data.get("monthly_expenses", 0))
 
 
 @app.route("/save-state", methods=["POST"])
@@ -272,6 +276,8 @@ def calculate():
 
     saved_data["goals"] = goals
     saved_data["balance"] = balance
+    saved_data["monthly_income"] = monthly_income
+    saved_data["monthly_expenses"] = monthly_expenses
     save_data(saved_data)
 
     return jsonify({
