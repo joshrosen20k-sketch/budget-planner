@@ -53,8 +53,9 @@ def load_data():
                 "away_periods": row.get("away_periods") or [],
                 "balance": row.get("balance") or 0,
                 "push_subscription": row.get("push_subscription"),
+                "savings_history": row.get("savings_history") or [],
             }
-        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0}
+        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0, "savings_history": []}
     if os.path.exists(SAVE_FILE):
         with open(SAVE_FILE, "r") as f:
             return json.load(f)
@@ -72,6 +73,7 @@ def save_data(data):
             "away_periods": data.get("away_periods", []),
             "balance": data.get("balance", 0),
             "push_subscription": data.get("push_subscription"),
+            "savings_history": data.get("savings_history", []),
         }
         if result.data:
             sb.table("budget_data").update(payload).eq("id", 1).execute()
@@ -142,7 +144,7 @@ def calc_adjusted_months(needed, spendable, away_periods):
 @app.route("/")
 def index():
     data = load_data()
-    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0))
+    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []))
 
 
 @app.route("/save-state", methods=["POST"])
@@ -374,8 +376,11 @@ def add_savings():
     current = float(data.get("balance") or 0)
     new_balance = round(current + amount, 2)
     data["balance"] = new_balance
+    history = data.get("savings_history") or []
+    history.insert(0, {"date": date.today().isoformat(), "amount": amount})
+    data["savings_history"] = history[:50]
     save_data(data)
-    return jsonify({"balance": new_balance})
+    return jsonify({"balance": new_balance, "history": data["savings_history"]})
 
 
 if __name__ == "__main__":

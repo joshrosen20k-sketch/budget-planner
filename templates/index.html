@@ -130,6 +130,7 @@
 
   <script>
     const savedGoals = {{ goals | tojson }};
+    let savingsHistory = {{ (savings_history if savings_history is defined else []) | tojson }};
     let goals = savedGoals.slice();
     let currentTaxRate = {{ tax_rate if tax_rate is not none else 0 }};
 
@@ -274,6 +275,24 @@
       calculate();
     }
 
+    function renderHistory() {
+      const existing = document.getElementById("history-card");
+      if (existing) existing.remove();
+      if (!savingsHistory.length) return;
+      const card = document.createElement("div");
+      card.className = "card summary-card";
+      card.id = "history-card";
+      card.innerHTML = `
+        <h2>Savings Log</h2>
+        ${savingsHistory.map(e => `
+          <div class="summary-row">
+            <span>${e.date}</span>
+            <span class="green">+$${parseFloat(e.amount).toFixed(2)}</span>
+          </div>`).join("")}
+      `;
+      document.getElementById("results").appendChild(card);
+    }
+
     async function addSavings() {
       const amount = parseFloat(prompt("How much did you save? ($)"));
       if (!amount || amount <= 0) return;
@@ -284,6 +303,7 @@
       });
       const data = await res.json();
       document.getElementById("balance").value = data.balance;
+      savingsHistory = data.history;
       calculate();
     }
 
@@ -321,6 +341,9 @@
         const names = reached.map(r => r.name).join(" & ");
         showToast(`🎉 You can afford ${names}!`);
       }
+
+      // Savings history
+      renderHistory();
 
       // Total dashboard (adds up all goals)
       const dash = document.createElement("div");
