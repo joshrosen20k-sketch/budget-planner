@@ -269,6 +269,12 @@
 
       if (results.length === 0) return;
 
+      // Celebrate any reached goals
+      if (results.some(r => r.already_have)) {
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
+        setTimeout(() => confetti({ particleCount: 80, spread: 120, origin: { y: 0.3 } }), 400);
+      }
+
       // Total dashboard (adds up all goals)
       const dash = document.createElement("div");
       dash.className = "card summary-card";
@@ -310,7 +316,7 @@
         const buyBtn = r.url ? `<a href="${r.url}" target="_blank" class="btn-buy">🛒 Buy Now</a>` : "";
         const badge = r.is_priority ? `<span class="priority-badge">⭐ Get this first!</span>` : "";
         if (r.already_have) {
-          contentHTML = `<h3>${r.name}${badge}</h3><p class="green">You already have enough!</p>${buyBtn}`;
+          contentHTML = `<div class="reached-banner">🎉 Goal Reached!</div><h3>${r.name}${badge}</h3><p class="green">You already have enough!</p>${buyBtn}`;
         } else if ((r.plan_type || "save") === "save") {
           const progressPct = r.months_to_save ? Math.min(100, Math.round((r.months_elapsed / r.months_to_save) * 100)) : 0;
           contentHTML = `
@@ -408,6 +414,7 @@
       document.getElementById("app").style.backgroundImage = `url('/static/${data.background}')`;
     });
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js");

@@ -476,6 +476,19 @@ body {
   opacity: 0.85;
 }
 
+.reached-banner {
+  background: linear-gradient(135deg, #276749, #38a169);
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 20px rgba(56, 161, 105, 0.4);
+}
+
 .btn-delete-goal {
   float: right;
   background: transparent;
