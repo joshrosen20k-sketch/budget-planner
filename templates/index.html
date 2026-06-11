@@ -196,6 +196,19 @@
 
       if (results.length === 0) return;
 
+      // Total dashboard (adds up all goals)
+      const dash = document.createElement("div");
+      dash.className = "card summary-card";
+      dash.innerHTML = `
+        <h2>Your Progress</h2>
+        <div class="summary-row"><span>Total for all goals</span><span>$${summary.total_cost.toFixed(2)}</span></div>
+        <div class="summary-row"><span>Saved so far</span><span class="green">$${summary.total_saved.toFixed(2)}</span></div>
+        <div class="summary-row"><span>Goals reached</span><span class="cyan">${summary.goals_reached} of ${summary.goals_count}</span></div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${summary.overall_pct}%"></div></div>
+        <div class="progress-label">${summary.overall_pct}% of the way to everything</div>
+      `;
+      container.appendChild(dash);
+
       // Tab bar
       const tabBar = document.createElement("div");
       tabBar.className = "tab-bar";

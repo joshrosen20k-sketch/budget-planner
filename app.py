@@ -181,6 +181,7 @@ def calculate():
     away_periods = saved_data.get("away_periods", [])
 
     total_monthly_payments = 0
+    total_cost = 0
     results = []
 
     tax_rate = float(body.get("tax_rate") or 0)
@@ -190,6 +191,7 @@ def calculate():
         base_cost = float(goal["cost"])
         cost = round(base_cost * (1 + tax_rate / 100), 2)
         tax_amount = round(cost - base_cost, 2)
+        total_cost += cost
         plan_type = goal.get("plan_type", "save")
         monthly_payment = float(goal.get("monthly_payment") or 0)
         needed = cost - balance
@@ -256,6 +258,9 @@ def calculate():
     left_after_all = round(spendable - total_monthly_payments, 2)
     weekly = spendable * 12 / 52
     daily = spendable * 12 / 365
+    total_cost = round(total_cost, 2)
+    overall_pct = round(min(100, balance / total_cost * 100)) if total_cost > 0 else 0
+    goals_reached = sum(1 for r in results if r.get("already_have"))
 
     saved_data["goals"] = goals
     saved_data["balance"] = balance
@@ -270,6 +275,11 @@ def calculate():
             "left_after_all": left_after_all,
             "weekly": round(weekly, 2),
             "daily": round(daily, 2),
+            "total_cost": total_cost,
+            "total_saved": round(balance, 2),
+            "overall_pct": overall_pct,
+            "goals_count": len(goals),
+            "goals_reached": goals_reached,
         }
     })
 
