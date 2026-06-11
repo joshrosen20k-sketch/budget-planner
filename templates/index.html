@@ -188,7 +188,7 @@
       results.forEach((r, i) => {
         const tab = document.createElement("button");
         tab.className = "tab-btn" + (i === 0 ? " active" : "");
-        tab.textContent = r.name;
+        tab.textContent = (r.is_priority ? "⭐ " : "") + r.name;
         tab.onclick = () => {
           document.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
           document.querySelectorAll(".tab-panel").forEach(p => p.style.display = "none");
@@ -208,12 +208,13 @@
 
         let contentHTML = "";
         const buyBtn = r.url ? `<a href="${r.url}" target="_blank" class="btn-buy">🛒 Buy Now</a>` : "";
+        const badge = r.is_priority ? `<span class="priority-badge">⭐ Get this first!</span>` : "";
         if (r.already_have) {
-          contentHTML = `<h3>${r.name}</h3><p class="green">You already have enough!</p>${buyBtn}`;
+          contentHTML = `<h3>${r.name}${badge}</h3><p class="green">You already have enough!</p>${buyBtn}`;
         } else if ((r.plan_type || "save") === "save") {
           const progressPct = r.months_to_save ? Math.min(100, Math.round((r.months_elapsed / r.months_to_save) * 100)) : 0;
           contentHTML = `
-            <h3>${r.name}</h3>
+            <h3>${r.name}${badge}</h3>
             <p class="needed">You need <strong>$${r.needed.toFixed(2)}</strong> more.</p>
             <div class="option full-width">
               <div class="option-title green">Saving Up</div>
@@ -236,7 +237,7 @@
           else verdict = "Payment plan costs the same — get it now if you want.";
 
           contentHTML = `
-            <h3>${r.name}</h3>
+            <h3>${r.name}${badge}</h3>
             <p class="needed">You need <strong>$${r.needed.toFixed(2)}</strong> more.</p>
             <div class="option full-width">
               <div class="option-title purple">Payment Plan</div>
@@ -264,9 +265,9 @@
           await fetch("/delete-goal", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index: i }),
+            body: JSON.stringify({ index: r.goal_index }),
           });
-          goals.splice(i, 1);
+          goals.splice(r.goal_index, 1);
           calculate();
         };
         panel.appendChild(deleteBtn);

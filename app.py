@@ -151,6 +151,19 @@ def save_state():
     return jsonify({"state": state, "tax_rate": tax_rate})
 
 
+def goal_rank(r):
+    # Smaller number = you can reach this goal sooner = show it first
+    if r.get("already_have"):
+        return 0
+    if r.get("plan_type") == "save":
+        months = r.get("months_remaining")
+        if months is None:
+            months = r.get("months_to_save")
+        return months if months is not None else 9999
+    payments = r.get("num_payments")
+    return payments if payments is not None else 9999
+
+
 @app.route("/calculate", methods=["POST"])
 def calculate():
     body = request.json
@@ -170,7 +183,7 @@ def calculate():
 
     tax_rate = float(body.get("tax_rate") or 0)
 
-    for goal in goals:
+    for goal_index, goal in enumerate(goals):
         name = goal["name"]
         base_cost = float(goal["cost"])
         cost = round(base_cost * (1 + tax_rate / 100), 2)
@@ -183,7 +196,7 @@ def calculate():
         goal["added_on"] = added_on
 
         if needed <= 0:
-            results.append({"name": name, "already_have": True, "plan_type": plan_type})
+            results.append({"name": name, "already_have": True, "plan_type": plan_type, "goal_index": goal_index})
             continue
 
         if plan_type == "save":
@@ -199,6 +212,7 @@ def calculate():
                 "name": name,
                 "already_have": False,
                 "plan_type": "save",
+                "goal_index": goal_index,
                 "needed": round(needed, 2),
                 "cost": cost,
                 "tax_amount": tax_amount,
@@ -219,6 +233,7 @@ def calculate():
                 "name": name,
                 "already_have": False,
                 "plan_type": "payment",
+                "goal_index": goal_index,
                 "needed": round(needed, 2),
                 "cost": cost,
                 "tax_amount": tax_amount,
@@ -229,6 +244,12 @@ def calculate():
                 "leftover": round(spendable - monthly_payment, 2),
                 "shortage": round(monthly_payment - spendable, 2),
             })
+
+    results.sort(key=goal_rank)
+    for r in results:
+        if not r.get("already_have"):
+            r["is_priority"] = True
+            break
 
     left_after_all = round(spendable - total_monthly_payments, 2)
     weekly = spendable * 12 / 52
