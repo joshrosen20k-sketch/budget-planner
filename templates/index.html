@@ -279,6 +279,8 @@
       summaryCard.innerHTML = `
         <h2>Monthly Summary</h2>
         <div class="summary-row"><span>Spendable income</span><span>$${summary.spendable.toFixed(2)}</span></div>
+        <div class="summary-row"><span>That's per week</span><span class="cyan">$${summary.weekly.toFixed(2)}</span></div>
+        <div class="summary-row"><span>That's per day</span><span class="cyan">$${summary.daily.toFixed(2)}</span></div>
         <div class="summary-row"><span>Total payment plans</span><span class="red">-$${summary.total_monthly_payments.toFixed(2)}</span></div>
         <div class="summary-divider"></div>
         <div class="summary-row summary-total"><span>Left each month</span><span class="${summary.left_after_all >= 0 ? 'green' : 'red'}">$${summary.left_after_all.toFixed(2)}</span></div>

@@ -231,6 +231,8 @@ def calculate():
             })
 
     left_after_all = round(spendable - total_monthly_payments, 2)
+    weekly = spendable * 12 / 52
+    daily = spendable * 12 / 365
 
     saved_data["goals"] = goals
     save_data(saved_data)
@@ -242,6 +244,8 @@ def calculate():
             "spendable": round(spendable, 2),
             "total_monthly_payments": round(total_monthly_payments, 2),
             "left_after_all": left_after_all,
+            "weekly": round(weekly, 2),
+            "daily": round(daily, 2),
         }
     })
 
