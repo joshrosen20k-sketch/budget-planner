@@ -63,7 +63,10 @@
       <button class="btn-back" onclick="showPage('home')">← Edit</button>
       <h1 class="title">Your Goals</h1>
     </div>
-    <button class="btn-primary" onclick="addSavings()" style="margin-bottom:20px;">➕ I saved money!</button>
+    <div style="display:flex;gap:10px;margin-bottom:20px;">
+      <button class="btn-primary" onclick="addSavings()" style="margin-bottom:0;">➕ I saved money!</button>
+      <button class="btn-secondary" id="notify-btn" onclick="enableNotifications()">🔔 Remind me</button>
+    </div>
     <div id="results"></div>
   </div>
 
@@ -184,6 +187,37 @@
       if (months < 12) return `${months.toFixed(1)} months`;
       const years = (months / 12).toFixed(1);
       return `${years} years (${Math.round(months)} months)`;
+    }
+
+    async function enableNotifications() {
+      if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+        return alert("Your browser doesn't support notifications.");
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        return showToast("❌ Notifications blocked — check your browser settings.");
+      }
+      const keyRes = await fetch("/vapid-public-key");
+      const { key } = await keyRes.json();
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: key,
+      });
+      await fetch("/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sub),
+      });
+      document.getElementById("notify-btn").textContent = "🔔 Send reminder now";
+      document.getElementById("notify-btn").onclick = sendReminder;
+      showToast("🔔 Reminders enabled!");
+    }
+
+    async function sendReminder() {
+      const res = await fetch("/send-reminder", { method: "POST" });
+      if (res.ok) showToast("📲 Reminder sent to your phone!");
+      else showToast("❌ Couldn't send — check Render env vars.");
     }
 
     let toastTimer = null;

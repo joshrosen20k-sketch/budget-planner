@@ -5,6 +5,10 @@ from datetime import date
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_CLAIMS = {"sub": "mailto:josh.rosen20k@gmail.com"}
+
 app = Flask(__name__)
 
 SAVE_FILE = os.path.join(os.path.dirname(__file__), "budget_data.json")
@@ -48,6 +52,7 @@ def load_data():
                 "tax_rate": row.get("tax_rate"),
                 "away_periods": row.get("away_periods") or [],
                 "balance": row.get("balance") or 0,
+                "push_subscription": row.get("push_subscription"),
             }
         return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0}
     if os.path.exists(SAVE_FILE):
@@ -66,6 +71,7 @@ def save_data(data):
             "tax_rate": data.get("tax_rate"),
             "away_periods": data.get("away_periods", []),
             "balance": data.get("balance", 0),
+            "push_subscription": data.get("push_subscription"),
         }
         if result.data:
             sb.table("budget_data").update(payload).eq("id", 1).execute()
@@ -323,6 +329,41 @@ def delete_goal():
     data["goals"].pop(index)
     save_data(data)
     return jsonify({"ok": True})
+
+
+@app.route("/vapid-public-key")
+def vapid_public_key():
+    return jsonify({"key": VAPID_PUBLIC_KEY})
+
+
+@app.route("/subscribe", methods=["POST"])
+def subscribe():
+    subscription = request.json
+    data = load_data()
+    data["push_subscription"] = subscription
+    save_data(data)
+    return jsonify({"ok": True})
+
+
+@app.route("/send-reminder", methods=["POST"])
+def send_reminder():
+    if not VAPID_PRIVATE_KEY:
+        return jsonify({"error": "Push not configured"}), 500
+    data = load_data()
+    sub = data.get("push_subscription")
+    if not sub:
+        return jsonify({"error": "No subscription"}), 400
+    try:
+        from pywebpush import webpush
+        webpush(
+            subscription_info=sub,
+            data=json.dumps({"title": "Budget Reminder 💰", "body": "Don't forget to save today — every dollar counts!"}),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=VAPID_CLAIMS,
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/add-savings", methods=["POST"])
