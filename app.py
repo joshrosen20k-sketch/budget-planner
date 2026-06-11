@@ -47,8 +47,9 @@ def load_data():
                 "state": row.get("state"),
                 "tax_rate": row.get("tax_rate"),
                 "away_periods": row.get("away_periods") or [],
+                "balance": row.get("balance") or 0,
             }
-        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": []}
+        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0}
     if os.path.exists(SAVE_FILE):
         with open(SAVE_FILE, "r") as f:
             return json.load(f)
@@ -64,6 +65,7 @@ def save_data(data):
             "state": data.get("state"),
             "tax_rate": data.get("tax_rate"),
             "away_periods": data.get("away_periods", []),
+            "balance": data.get("balance", 0),
         }
         if result.data:
             sb.table("budget_data").update(payload).eq("id", 1).execute()
@@ -134,7 +136,7 @@ def calc_adjusted_months(needed, spendable, away_periods):
 @app.route("/")
 def index():
     data = load_data()
-    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []))
+    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0))
 
 
 @app.route("/save-state", methods=["POST"])
@@ -256,6 +258,7 @@ def calculate():
     daily = spendable * 12 / 365
 
     saved_data["goals"] = goals
+    saved_data["balance"] = balance
     save_data(saved_data)
 
     return jsonify({
@@ -295,6 +298,18 @@ def delete_goal():
     data["goals"].pop(index)
     save_data(data)
     return jsonify({"ok": True})
+
+
+@app.route("/add-savings", methods=["POST"])
+def add_savings():
+    body = request.json
+    amount = float(body.get("amount") or 0)
+    data = load_data()
+    current = float(data.get("balance") or 0)
+    new_balance = round(current + amount, 2)
+    data["balance"] = new_balance
+    save_data(data)
+    return jsonify({"balance": new_balance})
 
 
 if __name__ == "__main__":

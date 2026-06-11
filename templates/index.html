@@ -24,7 +24,7 @@
       <h2>Your Info</h2>
       <div class="form-grid">
         <label>Current Balance ($)</label>
-        <input type="number" id="balance" placeholder="e.g. 100" />
+        <input type="number" id="balance" placeholder="e.g. 100" value="{{ balance or '' }}" />
         <label>Monthly Income ($)</label>
         <input type="number" id="income" placeholder="e.g. 200" />
         <label>Monthly Expenses ($)</label>
@@ -62,6 +62,7 @@
       <button class="btn-back" onclick="showPage('home')">← Edit</button>
       <h1 class="title">Your Goals</h1>
     </div>
+    <button class="btn-primary" onclick="addSavings()" style="margin-bottom:20px;">➕ I saved money!</button>
     <div id="results"></div>
   </div>
 
@@ -154,6 +155,19 @@
       if (months < 12) return `${months.toFixed(1)} months`;
       const years = (months / 12).toFixed(1);
       return `${years} years (${Math.round(months)} months)`;
+    }
+
+    async function addSavings() {
+      const amount = parseFloat(prompt("How much did you save? ($)"));
+      if (!amount || amount <= 0) return;
+      const res = await fetch("/add-savings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+      document.getElementById("balance").value = data.balance;
+      calculate();
     }
 
     async function calculate() {
