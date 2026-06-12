@@ -286,7 +286,7 @@
         const data = await res.json();
         awayPeriods = data.away_periods;
         renderAwayPeriods();
-      });
+      }, "Remove");
     }
 
     // Mark active theme swatch on load
@@ -294,8 +294,9 @@
       s.classList.toggle('active', s.dataset.theme === '{{ theme or "ocean" }}');
     });
 
-    function showConfirm(message, onYes) {
+    function showConfirm(message, onYes, yesLabel = "Delete") {
       document.getElementById("confirm-message").textContent = message;
+      document.getElementById("confirm-yes").textContent = yesLabel;
       const modal = document.getElementById("confirm-modal");
       modal.style.display = "flex";
       document.getElementById("confirm-yes").onclick = () => { modal.style.display = "none"; onYes(); };
@@ -313,7 +314,7 @@
         document.getElementById("balance").value = data.balance;
         savingsHistory = data.history;
         calculate();
-      });
+      }, "Remove");
     }
 
     async function setTheme(theme) {
@@ -348,13 +349,13 @@
 
     async function saveState() {
       const state = document.getElementById("state-input").value.trim().toUpperCase();
-      if (!state) return alert("Enter a 2-letter state code like NY or CA.");
+      if (!state) return showToast("Enter a 2-letter state code like NY or CA.");
       const res = await fetch("/save-state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ state }),
       });
-      if (!res.ok) return alert("Unknown state. Use a 2-letter code like NY.");
+      if (!res.ok) return showToast("Unknown state — use a 2-letter code like NY.");
       const data = await res.json();
       currentTaxRate = data.tax_rate;
       document.getElementById("tax-display").textContent = `${data.tax_rate}% (${data.state})`;
@@ -375,7 +376,7 @@
             document.getElementById(id).value = "";
           });
           showPage("home");
-        });
+        }, "Leave");
       } else {
         showPage("home");
       }
@@ -396,7 +397,7 @@
       const deadline = document.getElementById("new-deadline").value || "";
 
       if (!name || !cost) {
-        alert("Please fill in item name and cost.");
+        showToast("Fill in item name and cost.");
         return;
       }
 
@@ -427,7 +428,7 @@
 
     async function enableNotifications() {
       if (!("Notification" in window) || !("serviceWorker" in navigator)) {
-        return alert("Your browser doesn't support notifications.");
+        return showToast("❌ Your browser doesn't support notifications.");
       }
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
@@ -501,7 +502,7 @@
       const monthly_payment = parseFloat(document.getElementById("edit-payment").value) || 0;
       const url = document.getElementById("edit-url").value.trim();
       const deadline = document.getElementById("edit-deadline").value || "";
-      if (!name || !cost) return alert("Name and cost are required.");
+      if (!name || !cost) return showToast("Name and cost are required.");
       await fetch("/edit-goal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
