@@ -151,6 +151,20 @@ def index():
     return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []), monthly_income=data.get("monthly_income", 0), monthly_expenses=data.get("monthly_expenses", 0))
 
 
+@app.route("/save-info", methods=["POST"])
+def save_info():
+    body = request.json
+    data = load_data()
+    if body.get("balance") is not None:
+        data["balance"] = float(body["balance"])
+    if body.get("monthly_income") is not None:
+        data["monthly_income"] = float(body["monthly_income"])
+    if body.get("monthly_expenses") is not None:
+        data["monthly_expenses"] = float(body["monthly_expenses"])
+    save_data(data)
+    return jsonify({"ok": True})
+
+
 @app.route("/save-state", methods=["POST"])
 def save_state():
     body = request.json
