@@ -177,6 +177,7 @@
     let savingsHistory = {{ (savings_history if savings_history is defined else []) | tojson }};
     let goals = savedGoals.slice();
     let currentTaxRate = {{ tax_rate if tax_rate is not none else 0 }};
+    const celebratedGoals = new Set();
 
     function formatNum(n) {
       return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -320,7 +321,13 @@
         return;
       }
 
-      goals.push({ name, cost, plan_type: planType, monthly_payment, url, deadline, added_on: "" });
+      const newGoal = { name, cost, plan_type: planType, monthly_payment, url, deadline, added_on: "" };
+      goals.push(newGoal);
+      fetch("/add-goal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newGoal),
+      });
 
       document.getElementById("new-name").value = "";
       document.getElementById("new-cost").value = "";
@@ -582,12 +589,13 @@
     }
 
     async function calculate() {
-      const balance = parseFloat(document.getElementById("balance").value);
-      const monthly_income = parseFloat(document.getElementById("income").value);
-      const monthly_expenses = parseFloat(document.getElementById("expenses").value);
+      const balance = parseFloat(document.getElementById("balance").value) || 0;
+      const monthly_income = parseFloat(document.getElementById("income").value) || 0;
+      const monthly_expenses = parseFloat(document.getElementById("expenses").value) || 0;
 
       if (!goals.length) {
-        alert("Add at least one goal first.");
+        showPage("home");
+        showToast("Add a goal to get started!");
         return;
       }
 
@@ -613,9 +621,10 @@
 
       if (results.length === 0) return;
 
-      // Celebrate any reached goals
-      const reached = results.filter(r => r.already_have);
+      // Celebrate newly reached goals (only ones not already in celebratedGoals)
+      const reached = results.filter(r => r.already_have && !celebratedGoals.has(r.name));
       if (reached.length) {
+        reached.forEach(r => celebratedGoals.add(r.name));
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
         setTimeout(() => confetti({ particleCount: 80, spread: 120, origin: { y: 0.3 } }), 400);
         const names = reached.map(r => r.name).join(" & ");

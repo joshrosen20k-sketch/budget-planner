@@ -370,6 +370,23 @@ def edit_goal():
     return jsonify({"ok": True})
 
 
+@app.route("/add-goal", methods=["POST"])
+def add_goal():
+    body = request.json
+    data = load_data()
+    data["goals"].append({
+        "name": body.get("name", ""),
+        "cost": float(body.get("cost", 0)),
+        "plan_type": body.get("plan_type", "save"),
+        "monthly_payment": float(body.get("monthly_payment") or 0),
+        "url": body.get("url", ""),
+        "deadline": body.get("deadline", ""),
+        "added_on": body.get("added_on", ""),
+    })
+    save_data(data)
+    return jsonify({"ok": True})
+
+
 @app.route("/delete-goal", methods=["POST"])
 def delete_goal():
     body = request.json
