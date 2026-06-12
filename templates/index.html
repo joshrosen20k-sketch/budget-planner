@@ -73,7 +73,17 @@
         </div>
       </div>
       <div style="margin-top:20px;">
-        <div style="font-size:0.875rem;color:var(--c-text-dim);margin-bottom:6px;">Away Periods</div>
+        <div style="font-size:0.875rem;color:var(--c-text-dim);margin-bottom:6px;">Google Calendar Sync</div>
+        <div style="font-size:0.78rem;color:var(--c-text-dim);margin-bottom:8px;">Paste your Google Calendar secret iCal link — it auto-imports upcoming multi-day events as away periods.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="url" id="calendar-url-input" placeholder="webcal://..." value="{{ calendar_url or '' }}" style="flex:1;min-width:0;" />
+          <button class="btn-secondary" onclick="saveAndSyncCalendar()">Sync</button>
+        </div>
+        <div id="calendar-sync-status" style="font-size:0.8rem;color:var(--c-text-dim);margin-top:6px;"></div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div style="font-size:0.875rem;color:var(--c-text-dim);margin-bottom:6px;">Away Periods (manual)</div>
         <div id="away-periods-list"></div>
         <div style="display:grid;gap:8px;margin-top:4px;">
           <input type="text" id="away-name" placeholder="e.g. Summer Camp" />
@@ -386,6 +396,33 @@
       const data = await res.json();
       currentTaxRate = data.tax_rate;
       document.getElementById("tax-display").textContent = `${data.tax_rate}% (${data.state})`;
+    }
+
+    async function saveAndSyncCalendar() {
+      const url = document.getElementById("calendar-url-input").value.trim();
+      const status = document.getElementById("calendar-sync-status");
+      if (!url) return showToast("Paste your iCal URL first.");
+      status.textContent = "Saving URL…";
+      await fetch("/save-calendar-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      status.textContent = "Syncing calendar…";
+      const res = await fetch("/sync-calendar", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        status.style.color = "var(--red, #fc8181)";
+        status.textContent = "Error: " + data.error;
+        return;
+      }
+      awayPeriods = data.away_periods;
+      renderAwayPeriods();
+      status.style.color = "var(--c-text-dim)";
+      status.textContent = data.added > 0
+        ? `✅ Added ${data.added} event${data.added === 1 ? "" : "s"} from your calendar.`
+        : "✅ Already up to date — no new events found.";
+      showToast(`Calendar synced!`);
     }
 
     async function saveSpendingLimit() {

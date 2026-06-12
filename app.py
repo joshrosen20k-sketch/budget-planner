@@ -1,7 +1,7 @@
 import json
 import math
 import os
-from datetime import date
+from datetime import date, timedelta
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
@@ -61,8 +61,9 @@ def load_data():
                 "monthly_expenses": row.get("monthly_expenses") or 0,
                 "theme": row.get("theme") or "ocean",
                 "spending_limit": row.get("spending_limit") or 0,
+                "calendar_url": row.get("calendar_url") or "",
             }
-        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0, "savings_history": [], "monthly_income": 0, "monthly_expenses": 0, "theme": "ocean", "spending_limit": 0}
+        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0, "savings_history": [], "monthly_income": 0, "monthly_expenses": 0, "theme": "ocean", "spending_limit": 0, "calendar_url": ""}
     if os.path.exists(SAVE_FILE):
         with open(SAVE_FILE, "r") as f:
             return json.load(f)
@@ -85,6 +86,7 @@ def save_data(data):
             "monthly_expenses": data.get("monthly_expenses", 0),
             "theme": data.get("theme", "ocean"),
             "spending_limit": data.get("spending_limit", 0),
+            "calendar_url": data.get("calendar_url", ""),
         }
         if result.data:
             sb.table("budget_data").update(payload).eq("id", 1).execute()
@@ -155,7 +157,7 @@ def calc_adjusted_months(needed, spendable, away_periods):
 @app.route("/")
 def index():
     data = load_data()
-    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []), monthly_income=data.get("monthly_income", 0), monthly_expenses=data.get("monthly_expenses", 0), theme=data.get("theme", "ocean"), spending_limit=data.get("spending_limit", 0))
+    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []), monthly_income=data.get("monthly_income", 0), monthly_expenses=data.get("monthly_expenses", 0), theme=data.get("theme", "ocean"), spending_limit=data.get("spending_limit", 0), calendar_url=data.get("calendar_url", ""))
 
 
 @app.route("/save-theme", methods=["POST"])
@@ -370,6 +372,60 @@ def edit_goal():
     goal["deadline"] = body.get("deadline", goal.get("deadline", ""))
     save_data(data)
     return jsonify({"ok": True})
+
+
+@app.route("/save-calendar-url", methods=["POST"])
+def save_calendar_url():
+    url = request.json.get("url", "").strip()
+    data = load_data()
+    data["calendar_url"] = url
+    save_data(data)
+    return jsonify({"ok": True})
+
+
+@app.route("/sync-calendar", methods=["POST"])
+def sync_calendar():
+    data = load_data()
+    url = data.get("calendar_url", "").strip()
+    if not url:
+        return jsonify({"error": "No calendar URL saved."}), 400
+    try:
+        import requests as req
+        from icalendar import Calendar
+        resp = req.get(url, timeout=10)
+        resp.raise_for_status()
+        cal = Calendar.from_ical(resp.content)
+        today = date.today()
+        cutoff = date(today.year + 1, today.month, today.day)
+        new_periods = []
+        for component in cal.walk():
+            if component.name != "VEVENT":
+                continue
+            dtstart = component.get("DTSTART")
+            dtend = component.get("DTEND")
+            if not dtstart or not dtend:
+                continue
+            start = dtstart.dt
+            end = dtend.dt
+            if hasattr(start, "date"):
+                start = start.date()
+            if hasattr(end, "date"):
+                end = end.date()
+            end_inclusive = end - timedelta(days=1)
+            if end_inclusive <= start:
+                continue
+            if start < today or start > cutoff:
+                continue
+            summary = str(component.get("SUMMARY", "Event"))
+            new_periods.append({"name": summary, "start": start.isoformat(), "end": end_inclusive.isoformat()})
+        existing = data.get("away_periods") or []
+        existing_keys = {(p["name"], p["start"]) for p in existing}
+        added = [p for p in new_periods if (p["name"], p["start"]) not in existing_keys]
+        data["away_periods"] = existing + added
+        save_data(data)
+        return jsonify({"ok": True, "added": len(added), "away_periods": data["away_periods"]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/save-spending-limit", methods=["POST"])
