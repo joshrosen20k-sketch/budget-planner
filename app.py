@@ -252,6 +252,17 @@ def calculate():
             months_elapsed = (today_date.year - added_date.year) * 12 + (today_date.month - added_date.month)
             months_remaining = max(0, round((adjusted_months or months_to_save or 0) - months_elapsed, 1))
 
+            deadline_info = None
+            if goal.get("deadline"):
+                try:
+                    dl = date.fromisoformat(goal["deadline"])
+                    mo = (dl.year - today_date.year) * 12 + (dl.month - today_date.month)
+                    if mo > 0:
+                        mneed = round(needed / mo, 2)
+                        deadline_info = {"deadline": goal["deadline"], "months": mo, "monthly_needed": mneed, "on_track": spendable >= mneed}
+                except (ValueError, KeyError):
+                    pass
+
             results.append({
                 "name": name,
                 "already_have": False,
@@ -265,6 +276,7 @@ def calculate():
                 "months_elapsed": months_elapsed,
                 "added_on": added_on,
                 "away_hits": away_hits,
+                "deadline_info": deadline_info,
             })
 
         else:
@@ -353,6 +365,7 @@ def edit_goal():
     goal["plan_type"] = body.get("plan_type", goal.get("plan_type", "save"))
     goal["monthly_payment"] = float(body.get("monthly_payment") or 0)
     goal["url"] = body.get("url", goal.get("url", ""))
+    goal["deadline"] = body.get("deadline", goal.get("deadline", ""))
     save_data(data)
     return jsonify({"ok": True})
 

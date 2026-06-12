@@ -38,6 +38,8 @@
       <button class="btn-secondary" onclick="showPage('new-goal')">+ New Goal</button>
     </div>
 
+    <div id="home-goals-slot"></div>
+
     <div class="card">
       <h2>Tax & Settings</h2>
       <div class="form-grid">
@@ -92,6 +94,8 @@
         <input type="number" id="edit-cost" />
         <label>Website URL</label>
         <input type="url" id="edit-url" />
+        <label>Target Date</label>
+        <input type="date" id="edit-deadline" />
         <label>Plan Type</label>
         <div class="toggle-group">
           <button class="toggle-btn active" data-val="save" onclick="setEditPlanType(this)">Saving Up</button>
@@ -105,6 +109,21 @@
       <div style="display:flex;gap:10px;margin-top:16px;">
         <button class="btn-primary" style="margin-bottom:0" onclick="saveEditGoal()">Save Changes</button>
         <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVINGS MODAL -->
+  <div id="savings-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(5,10,30,0.85);align-items:center;justify-content:center;">
+    <div class="card" style="width:320px;max-width:90vw;">
+      <h2>Log Savings</h2>
+      <div class="form-grid">
+        <label>Amount ($)</label>
+        <input type="number" id="savings-input" placeholder="e.g. 25" />
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn-primary" style="margin-bottom:0" onclick="confirmAddSavings()">Add</button>
+        <button class="btn-secondary" onclick="document.getElementById('savings-modal').style.display='none'">Cancel</button>
       </div>
     </div>
   </div>
@@ -135,6 +154,8 @@
         <input type="number" id="new-cost" placeholder="e.g. 1000" />
         <label>Website URL</label>
         <input type="url" id="new-url" placeholder="e.g. https://apple.com/macbook" />
+        <label>Target Date</label>
+        <input type="date" id="new-deadline" />
         <label>Plan Type</label>
         <div class="toggle-group">
           <button class="toggle-btn active" data-val="save" onclick="setNewPlanType(this)">Saving Up</button>
@@ -155,6 +176,27 @@
     let savingsHistory = {{ (savings_history if savings_history is defined else []) | tojson }};
     let goals = savedGoals.slice();
     let currentTaxRate = {{ tax_rate if tax_rate is not none else 0 }};
+
+    function formatNum(n) {
+      return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderHomeGoals() {
+      const slot = document.getElementById("home-goals-slot");
+      if (!slot) return;
+      if (!goals.length) { slot.innerHTML = ""; return; }
+      slot.innerHTML = `
+        <div class="card" style="margin-bottom:20px;">
+          <h2>Your Goals (${goals.length})</h2>
+          ${goals.map(g => `
+            <div class="summary-row">
+              <span>${g.name}</span>
+              <span>$${formatNum(g.cost)}</span>
+            </div>`).join("")}
+        </div>`;
+    }
+
+    renderHomeGoals();
 
     // Mark active theme swatch on load
     document.querySelectorAll('.theme-swatch').forEach(s => {
@@ -230,6 +272,7 @@
     function showPage(name) {
       document.querySelectorAll(".container").forEach(el => el.classList.add("hidden"));
       document.getElementById("page-" + name).classList.remove("hidden");
+      if (name === "home") renderHomeGoals();
     }
 
     function setNewPlanType(btn) {
@@ -244,19 +287,20 @@
       const planType = document.querySelector("#page-new-goal .toggle-btn.active").dataset.val;
       const monthly_payment = parseFloat(document.getElementById("new-payment").value) || 0;
       const url = document.getElementById("new-url").value.trim();
+      const deadline = document.getElementById("new-deadline").value || "";
 
       if (!name || !cost) {
         alert("Please fill in item name and cost.");
         return;
       }
 
-      goals.push({ name, cost, plan_type: planType, monthly_payment, url, added_on: "" });
+      goals.push({ name, cost, plan_type: planType, monthly_payment, url, deadline, added_on: "" });
 
-      // Clear form
       document.getElementById("new-name").value = "";
       document.getElementById("new-cost").value = "";
       document.getElementById("new-payment").value = "";
       document.getElementById("new-url").value = "";
+      document.getElementById("new-deadline").value = "";
 
       showPage("home");
     }
@@ -318,6 +362,7 @@
       document.getElementById("edit-cost").value = goal.cost;
       document.getElementById("edit-url").value = goal.url || "";
       document.getElementById("edit-payment").value = goal.monthly_payment || "";
+      document.getElementById("edit-deadline").value = goal.deadline || "";
       const planType = goal.plan_type || "save";
       document.querySelectorAll("#edit-modal .toggle-btn").forEach(b => {
         b.classList.toggle("active", b.dataset.val === planType);
@@ -343,13 +388,14 @@
       const planType = document.querySelector("#edit-modal .toggle-btn.active").dataset.val;
       const monthly_payment = parseFloat(document.getElementById("edit-payment").value) || 0;
       const url = document.getElementById("edit-url").value.trim();
+      const deadline = document.getElementById("edit-deadline").value || "";
       if (!name || !cost) return alert("Name and cost are required.");
       await fetch("/edit-goal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ index: editingIndex, name, cost, plan_type: planType, monthly_payment, url }),
+        body: JSON.stringify({ index: editingIndex, name, cost, plan_type: planType, monthly_payment, url, deadline }),
       });
-      goals[editingIndex] = { ...goals[editingIndex], name, cost, plan_type: planType, monthly_payment, url };
+      goals[editingIndex] = { ...goals[editingIndex], name, cost, plan_type: planType, monthly_payment, url, deadline };
       closeEditModal();
       calculate();
     }
@@ -479,18 +525,25 @@
         <h2>Savings Log</h2>
         ${savingsHistory.map((e, i) => `
           <div class="history-row">
-            <span class="green" style="font-weight:600;">+$${parseFloat(e.amount).toFixed(2)}</span>
+            <span class="green" style="font-weight:600;">+$${formatNum(e.amount)}</span>
             <span class="history-date">${e.date}</span>
-            <span style="color:var(--c-text-dim);font-size:0.8rem;">total $${totals[i].toFixed(2)}</span>
+            <span style="color:var(--c-text-dim);font-size:0.8rem;">total $${formatNum(totals[i])}</span>
             <button class="history-delete-btn" onclick="deleteSavings(${i})">✕</button>
           </div>`).join("")}
       `;
       document.getElementById("results").appendChild(card);
     }
 
-    async function addSavings() {
-      const amount = parseFloat(prompt("How much did you save? ($)"));
+    function addSavings() {
+      document.getElementById("savings-input").value = "";
+      document.getElementById("savings-modal").style.display = "flex";
+      setTimeout(() => document.getElementById("savings-input").focus(), 50);
+    }
+
+    async function confirmAddSavings() {
+      const amount = parseFloat(document.getElementById("savings-input").value);
       if (!amount || amount <= 0) return;
+      document.getElementById("savings-modal").style.display = "none";
       const res = await fetch("/add-savings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -542,13 +595,15 @@
       renderChart(balance);
 
       // Total dashboard (adds up all goals)
+      const stillNeeded = Math.max(0, summary.total_cost - summary.total_saved);
       const dash = document.createElement("div");
       dash.className = "card summary-card card-accent-green card-enter";
       dash.style.setProperty('--card-delay', '120ms');
       dash.innerHTML = `
         <h2>Your Progress</h2>
-        <div class="summary-row"><span>Total for all goals</span><span>$${summary.total_cost.toFixed(2)}</span></div>
-        <div class="summary-row"><span>Saved so far</span><span class="green">$${summary.total_saved.toFixed(2)}</span></div>
+        <div class="summary-row"><span>Total for all goals</span><span>$${formatNum(summary.total_cost)}</span></div>
+        <div class="summary-row"><span>Saved so far</span><span class="green">$${formatNum(summary.total_saved)}</span></div>
+        <div class="summary-row"><span>Still needed</span><span class="red">$${formatNum(stillNeeded)}</span></div>
         <div class="summary-row"><span>Goals reached</span><span class="cyan">${summary.goals_reached} of ${summary.goals_count}</span></div>
         <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${summary.overall_pct}%"></div></div>
         <div class="progress-label">${summary.overall_pct}% of the way to everything</div>
@@ -588,39 +643,45 @@
           contentHTML = `<div class="reached-banner">🎉 Goal Reached!</div><h3>${r.name}</h3>${badge}<p class="green">You already have enough!</p>${buyBtn}`;
         } else if ((r.plan_type || "save") === "save") {
           const progressPct = r.months_to_save ? Math.min(100, Math.round((r.months_elapsed / r.months_to_save) * 100)) : 0;
+          const deadlineHTML = r.deadline_info ? `
+            <div class="option" style="margin-top:10px;border-color:${r.deadline_info.on_track ? 'rgba(72,187,120,0.3)' : 'rgba(252,129,129,0.3)'};">
+              <div class="option-title cyan">⏰ Target: ${r.deadline_info.deadline}</div>
+              <div class="option-row"><span>Months to deadline</span><span>${r.deadline_info.months}</span></div>
+              <div class="option-row"><span>Need per month</span><span class="${r.deadline_info.on_track ? 'green' : 'red'}">$${formatNum(r.deadline_info.monthly_needed)}</span></div>
+              <div class="option-row"><span>Status</span><span class="${r.deadline_info.on_track ? 'green' : 'red'}">${r.deadline_info.on_track ? '✅ On track' : '⚠️ Need more savings'}</span></div>
+            </div>` : "";
           contentHTML = `
             <h3>${r.name}</h3>${badge}
-            <p class="needed">You need <strong>$${r.needed.toFixed(2)}</strong> more.</p>
+            <p class="needed">You need <strong>$${formatNum(r.needed)}</strong> more.</p>
             <div class="option full-width">
               <div class="option-title green">Saving Up</div>
               <div class="option-row"><span>Total time needed</span><span>${timeString(r.months_to_save)}</span></div>
               <div class="option-row"><span>Time remaining</span><span class="cyan">${timeString(r.months_remaining)}</span></div>
               ${r.away_hits && r.away_hits.length ? `<div class="option-row yellow"><span>⛺ Away periods factored in</span><span>${r.away_hits.map(a => a.event).filter((v,i,arr) => arr.indexOf(v)===i).join(", ")}</span></div>` : ""}
-              <div class="option-row"><span>Price + tax</span><span>$${r.cost.toFixed(2)} <span class="yellow">(+$${(r.tax_amount||0).toFixed(2)} tax)</span></span></div>
-              <div class="progress-bar-wrap">
-                <div class="progress-bar-fill" style="width: ${progressPct}%"></div>
-              </div>
+              <div class="option-row"><span>Price + tax</span><span>$${formatNum(r.cost)} <span class="yellow">(+$${formatNum(r.tax_amount||0)} tax)</span></span></div>
+              <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${progressPct}%"></div></div>
               <div class="progress-label">${progressPct}% of the way there</div>
             </div>
+            ${deadlineHTML}
             ${buyBtn}
           `;
         } else {
           const verdictClass = !r.can_afford ? "red" : r.total_paid > r.cost ? "yellow" : "green";
           let verdict = "";
-          if (!r.can_afford) verdict = `Payment plan not affordable — you're $${r.shortage.toFixed(2)} short each month.`;
-          else if (r.total_paid > r.cost) verdict = `Payment plan costs $${(r.total_paid - r.cost).toFixed(2)} more than the price.`;
+          if (!r.can_afford) verdict = `Payment plan not affordable — you're $${formatNum(r.shortage)} short each month.`;
+          else if (r.total_paid > r.cost) verdict = `Payment plan costs $${formatNum(r.total_paid - r.cost)} more than the price.`;
           else verdict = "Payment plan costs the same — get it now if you want.";
 
           contentHTML = `
             <h3>${r.name}</h3>${badge}
-            <p class="needed">You need <strong>$${r.needed.toFixed(2)}</strong> more.</p>
+            <p class="needed">You need <strong>$${formatNum(r.needed)}</strong> more.</p>
             <div class="option full-width">
               <div class="option-title purple">Payment Plan</div>
-              <div class="option-row"><span>Monthly payment</span><span>$${(r.monthly_payment||0).toFixed(2)} × ${r.num_payments || 0} months</span></div>
-              <div class="option-row"><span>Price + tax</span><span>$${r.cost.toFixed(2)} <span class="yellow">(+$${(r.tax_amount||0).toFixed(2)} tax)</span></span></div>
-              <div class="option-row"><span>Total paid</span><span>$${(r.total_paid||0).toFixed(2)}</span></div>
+              <div class="option-row"><span>Monthly payment</span><span>$${formatNum(r.monthly_payment||0)} × ${r.num_payments || 0} months</span></div>
+              <div class="option-row"><span>Price + tax</span><span>$${formatNum(r.cost)} <span class="yellow">(+$${formatNum(r.tax_amount||0)} tax)</span></span></div>
+              <div class="option-row"><span>Total paid</span><span>$${formatNum(r.total_paid||0)}</span></div>
               <div class="option-row"><span>${r.can_afford ? "Leftover/month" : "Shortage/month"}</span>
-                <span class="${r.can_afford ? 'green' : 'red'}">${r.can_afford ? '+' : '-'}$${r.can_afford ? r.leftover.toFixed(2) : r.shortage.toFixed(2)}</span>
+                <span class="${r.can_afford ? 'green' : 'red'}">${r.can_afford ? '+' : '-'}$${r.can_afford ? formatNum(r.leftover) : formatNum(r.shortage)}</span>
               </div>
             </div>
             <div class="verdict ${verdictClass}">${verdict}</div>
@@ -669,12 +730,12 @@
       summaryCard.style.setProperty('--card-delay', '240ms');
       summaryCard.innerHTML = `
         <h2>Monthly Summary</h2>
-        <div class="summary-row"><span>Spendable income</span><span>$${summary.spendable.toFixed(2)}</span></div>
-        <div class="summary-row"><span>That's per week</span><span class="cyan">$${summary.weekly.toFixed(2)}</span></div>
-        <div class="summary-row"><span>That's per day</span><span class="cyan">$${summary.daily.toFixed(2)}</span></div>
-        <div class="summary-row"><span>Total payment plans</span><span class="red">-$${summary.total_monthly_payments.toFixed(2)}</span></div>
+        <div class="summary-row"><span>Spendable income</span><span>$${formatNum(summary.spendable)}</span></div>
+        <div class="summary-row"><span>That's per week</span><span class="cyan">$${formatNum(summary.weekly)}</span></div>
+        <div class="summary-row"><span>That's per day</span><span class="cyan">$${formatNum(summary.daily)}</span></div>
+        <div class="summary-row"><span>Total payment plans</span><span class="red">-$${formatNum(summary.total_monthly_payments)}</span></div>
         <div class="summary-divider"></div>
-        <div class="summary-row summary-total"><span>Left each month</span><span class="${summary.left_after_all >= 0 ? 'green' : 'red'}">$${summary.left_after_all.toFixed(2)}</span></div>
+        <div class="summary-row summary-total"><span>Left each month</span><span class="${summary.left_after_all >= 0 ? 'green' : 'red'}">$${formatNum(summary.left_after_all)}</span></div>
       `;
       container.appendChild(summaryCard);
     }
