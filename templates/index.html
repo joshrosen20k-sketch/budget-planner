@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Budget" />
   <meta name="theme-color" content="#2b6cb0" />
 </head>
-<body id="app" {% if background %}style="background-image: url('/static/{{ background }}');"{% endif %}>
+<body id="app" class="theme-{{ theme or 'ocean' }}" {% if background %}style="background-image: url('/static/{{ background }}');"{% endif %}>
 
   <div class="overlay"></div>
   <div class="toast" id="toast"></div>
@@ -53,6 +53,17 @@
         Change Background
         <input type="file" id="bg-upload" accept="image/*" hidden />
       </label>
+      <div style="margin-top:16px;">
+        <div style="font-size:0.875rem;color:var(--c-text-dim);margin-bottom:8px;">Theme</div>
+        <div class="theme-picker">
+          <button class="theme-swatch" data-theme="ocean"  title="🌊 Ocean"      onclick="setTheme('ocean')"  style="background:linear-gradient(135deg,#2b6cb0,#4299e1)"></button>
+          <button class="theme-swatch" data-theme="galaxy" title="🌌 Galaxy"     onclick="setTheme('galaxy')" style="background:linear-gradient(135deg,#553c9a,#b794f4)"></button>
+          <button class="theme-swatch" data-theme="forest" title="🌲 Forest"     onclick="setTheme('forest')" style="background:linear-gradient(135deg,#276749,#48bb78)"></button>
+          <button class="theme-swatch" data-theme="ember"  title="🔥 Ember"      onclick="setTheme('ember')"  style="background:linear-gradient(135deg,#c05621,#ed8936)"></button>
+          <button class="theme-swatch" data-theme="coral"  title="🪸 Coral Reef" onclick="setTheme('coral')"  style="background:linear-gradient(135deg,#c05621,#fc8c5a,#4fd1c5)"></button>
+          <button class="theme-swatch" data-theme="solar"  title="☀️ Solar"      onclick="setTheme('solar')"  style="background:linear-gradient(135deg,#b7791f,#f6e05e)"></button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -133,6 +144,25 @@
     let savingsHistory = {{ (savings_history if savings_history is defined else []) | tojson }};
     let goals = savedGoals.slice();
     let currentTaxRate = {{ tax_rate if tax_rate is not none else 0 }};
+
+    // Mark active theme swatch on load
+    document.querySelectorAll('.theme-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.theme === '{{ theme or "ocean" }}');
+    });
+
+    async function setTheme(theme) {
+      document.body.className = document.body.className
+        .split(' ').filter(c => !c.startsWith('theme-')).join(' ');
+      document.body.classList.add('theme-' + theme);
+      document.querySelectorAll('.theme-swatch').forEach(s => {
+        s.classList.toggle('active', s.dataset.theme === theme);
+      });
+      await fetch('/save-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme }),
+      });
+    }
 
     async function autoSave() {
       const payload = {};
