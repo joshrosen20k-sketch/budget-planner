@@ -293,7 +293,7 @@
       const card = document.createElement("div");
       card.className = "card summary-card";
       card.id = "chart-card";
-      card.innerHTML = `<h2>Savings Over Time</h2><canvas id="savings-canvas" height="180"></canvas>`;
+      card.innerHTML = `<h2>Allowance Fluctuations</h2><canvas id="savings-canvas" height="180"></canvas>`;
       document.getElementById("results").appendChild(card);
 
       new Chart(document.getElementById("savings-canvas"), {
