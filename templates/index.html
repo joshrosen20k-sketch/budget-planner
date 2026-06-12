@@ -275,6 +275,56 @@
       calculate();
     }
 
+    function renderChart() {
+      const existing = document.getElementById("chart-card");
+      if (existing) existing.remove();
+      if (!savingsHistory.length) return;
+
+      const chronological = [...savingsHistory].reverse();
+      let running = 0;
+      const labels = [];
+      const dataPoints = [];
+      for (const entry of chronological) {
+        running = Math.round((running + parseFloat(entry.amount)) * 100) / 100;
+        labels.push(entry.date);
+        dataPoints.push(running);
+      }
+
+      const card = document.createElement("div");
+      card.className = "card summary-card";
+      card.id = "chart-card";
+      card.innerHTML = `<h2>Savings Over Time</h2><canvas id="savings-canvas" height="180"></canvas>`;
+      document.getElementById("results").appendChild(card);
+
+      new Chart(document.getElementById("savings-canvas"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            data: dataPoints,
+            borderColor: "#48bb78",
+            backgroundColor: "rgba(72,187,120,0.12)",
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: "#48bb78",
+            fill: true,
+            tension: 0.3,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `$${ctx.raw.toFixed(2)}` } }
+          },
+          scales: {
+            x: { ticks: { color: "#a0aec0", maxTicksLimit: 7 }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: { ticks: { color: "#a0aec0", callback: v => `$${v}` }, grid: { color: "rgba(255,255,255,0.05)" } }
+          }
+        }
+      });
+    }
+
     function renderHistory() {
       const existing = document.getElementById("history-card");
       if (existing) existing.remove();
@@ -342,8 +392,9 @@
         showToast(`🎉 You can afford ${names}!`);
       }
 
-      // Savings history
+      // Savings history + chart
       renderHistory();
+      renderChart();
 
       // Total dashboard (adds up all goals)
       const dash = document.createElement("div");
@@ -490,6 +541,7 @@
       document.getElementById("app").style.backgroundImage = `url('/static/${data.background}')`;
     });
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
