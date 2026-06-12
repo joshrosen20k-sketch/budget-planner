@@ -275,7 +275,7 @@
       calculate();
     }
 
-    function renderChart() {
+    function renderChart(currentBalance) {
       const existing = document.getElementById("chart-card");
       if (existing) existing.remove();
       if (!savingsHistory.length) return;
@@ -291,31 +291,78 @@
       }
 
       const card = document.createElement("div");
-      card.className = "card summary-card";
+      card.className = "card summary-card card-accent-purple card-enter";
+      card.style.setProperty('--card-delay', '60ms');
       card.id = "chart-card";
-      card.innerHTML = `<h2>Allowance Fluctuations</h2><canvas id="savings-canvas" height="180"></canvas>`;
+      card.innerHTML = `<h2>Allowance Fluctuations</h2><div style="position:relative;height:200px;"><canvas id="savings-canvas"></canvas></div>`;
       document.getElementById("results").appendChild(card);
 
-      new Chart(document.getElementById("savings-canvas"), {
-        type: "line",
-        data: {
-          labels,
-          datasets: [{
-            data: dataPoints,
-            borderColor: "#48bb78",
-            backgroundColor: "rgba(72,187,120,0.12)",
-            borderWidth: 2,
-            pointRadius: 4,
-            pointBackgroundColor: "#48bb78",
-            fill: true,
-            tension: 0.3,
-          }]
+      const canvas = document.getElementById("savings-canvas");
+      const ctx = canvas.getContext("2d");
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+      gradient.addColorStop(0, "rgba(72,187,120,0.5)");
+      gradient.addColorStop(1, "rgba(72,187,120,0)");
+
+      const glowPlugin = {
+        id: "glow",
+        beforeDatasetsDraw(chart) {
+          chart.ctx.save();
+          chart.ctx.shadowColor = "#48bb78";
+          chart.ctx.shadowBlur = 14;
         },
+        afterDatasetsDraw(chart) { chart.ctx.restore(); }
+      };
+
+      const datasets = [{
+        data: dataPoints,
+        borderColor: "#48bb78",
+        backgroundColor: gradient,
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: "#48bb78",
+        pointBorderColor: "rgba(255,255,255,0.8)",
+        pointBorderWidth: 1.5,
+        pointHoverBackgroundColor: "#9ae6b4",
+        pointHoverBorderColor: "#fff",
+        pointHoverBorderWidth: 2,
+        fill: true,
+        tension: 0.35,
+        label: "Logged savings",
+      }];
+
+      if (currentBalance > 0 && labels.length >= 1) {
+        datasets.push({
+          data: Array(labels.length).fill(currentBalance),
+          borderColor: "rgba(99,179,237,0.55)",
+          borderDash: [6, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+          label: "Current balance",
+        });
+      }
+
+      new Chart(ctx, {
+        type: "line",
+        data: { labels, datasets },
+        plugins: [glowPlugin],
         options: {
           responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 1200, easing: "easeInOutQuart" },
           plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: ctx => `$${ctx.raw.toFixed(2)}` } }
+            legend: {
+              display: currentBalance > 0,
+              labels: { color: "#a0aec0", boxWidth: 14, font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label}: $${parseFloat(ctx.raw).toFixed(2)}`
+              }
+            }
           },
           scales: {
             x: { ticks: { color: "#a0aec0", maxTicksLimit: 7 }, grid: { color: "rgba(255,255,255,0.05)" } },
@@ -330,7 +377,8 @@
       if (existing) existing.remove();
       if (!savingsHistory.length) return;
       const card = document.createElement("div");
-      card.className = "card summary-card";
+      card.className = "card summary-card card-accent-green card-enter";
+      card.style.setProperty('--card-delay', '0ms');
       card.id = "history-card";
       card.innerHTML = `
         <h2>Savings Log</h2>
@@ -394,11 +442,12 @@
 
       // Savings history + chart
       renderHistory();
-      renderChart();
+      renderChart(balance);
 
       // Total dashboard (adds up all goals)
       const dash = document.createElement("div");
-      dash.className = "card summary-card";
+      dash.className = "card summary-card card-accent-green card-enter";
+      dash.style.setProperty('--card-delay', '120ms');
       dash.innerHTML = `
         <h2>Your Progress</h2>
         <div class="summary-row"><span>Total for all goals</span><span>$${summary.total_cost.toFixed(2)}</span></div>
@@ -428,9 +477,11 @@
 
       // Tab panels
       results.forEach((r, i) => {
+        const accentClass = r.already_have ? "card-accent-green" : r.is_priority ? "card-accent-gold" : "card-accent-blue";
         const panel = document.createElement("div");
-        panel.className = "result-card tab-panel";
+        panel.className = `result-card tab-panel card-enter ${accentClass}`;
         panel.style.display = i === 0 ? "block" : "none";
+        panel.style.setProperty('--card-delay', `${180 + i * 50}ms`);
         panel.id = `panel-${i}`;
 
         let contentHTML = "";
@@ -516,7 +567,8 @@
 
       // Monthly Summary at the bottom
       const summaryCard = document.createElement("div");
-      summaryCard.className = "card summary-card";
+      summaryCard.className = "card summary-card card-accent-blue card-enter";
+      summaryCard.style.setProperty('--card-delay', '240ms');
       summaryCard.innerHTML = `
         <h2>Monthly Summary</h2>
         <div class="summary-row"><span>Spendable income</span><span>$${summary.spendable.toFixed(2)}</span></div>

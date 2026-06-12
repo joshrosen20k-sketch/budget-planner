@@ -90,9 +90,11 @@ body {
   font-weight: 700;
   text-align: center;
   margin-bottom: 36px;
-  color: #ffffff;
+  background: linear-gradient(135deg, #63b3ed 0%, #76e4f7 50%, #b794f4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   letter-spacing: -0.5px;
-  text-shadow: 0 0 30px rgba(99, 179, 237, 0.4);
 }
 
 .card {
@@ -102,6 +104,7 @@ body {
   padding: 24px;
   margin-bottom: 20px;
   backdrop-filter: blur(12px);
+  transition: box-shadow 0.3s, border-color 0.3s;
 }
 
 .card h2 {
@@ -188,8 +191,9 @@ body {
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 0 28px rgba(66, 153, 225, 0.55), 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .btn-secondary {
@@ -440,16 +444,18 @@ body {
 .progress-bar-wrap {
   background: rgba(10, 20, 50, 0.6);
   border-radius: 999px;
-  height: 8px;
+  height: 10px;
   margin-top: 14px;
   overflow: hidden;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #2b6cb0, #68d391);
+  background: linear-gradient(90deg, #2b6cb0, #48bb78, #76e4f7, #48bb78, #2b6cb0);
+  background-size: 300% auto;
   border-radius: 999px;
-  transition: width 0.6s ease;
+  transition: width 0.8s ease;
+  animation: shimmer 3s linear infinite;
 }
 
 .progress-label {
@@ -526,3 +532,31 @@ body {
 .btn-delete-goal:hover {
   background: rgba(252, 129, 129, 0.1);
 }
+
+/* === Visual polish === */
+
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-enter {
+  opacity: 0;
+  animation: cardEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--card-delay, 0ms);
+}
+
+.card:hover, .result-card:hover {
+  box-shadow: 0 4px 30px rgba(99, 179, 237, 0.12);
+  border-color: rgba(99, 179, 237, 0.38);
+}
+
+.card-accent-green  { border-top: 2px solid rgba(72, 187, 120, 0.7); }
+.card-accent-gold   { border-top: 2px solid rgba(246, 196, 89, 0.65); box-shadow: 0 0 20px rgba(246, 196, 89, 0.07); }
+.card-accent-purple { border-top: 2px solid rgba(159, 122, 234, 0.65); }
+.card-accent-blue   { border-top: 2px solid rgba(99, 179, 237, 0.6); }
