@@ -84,7 +84,7 @@
   </div>
 
   <!-- EDIT MODAL -->
-  <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(5,10,30,0.85);display:none;align-items:center;justify-content:center;">
+  <div id="edit-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(5,10,30,0.85);align-items:center;justify-content:center;">
     <div class="card" style="width:340px;max-width:90vw;">
       <h2>Edit Goal</h2>
       <div class="form-grid">
@@ -720,7 +720,6 @@
             calculate();
           });
         };
-        panel.appendChild(deleteBtn);
         container.appendChild(panel);
       });
 
@@ -744,7 +743,6 @@
     document.getElementById("bg-upload").addEventListener("change", async function () {
       const file = this.files[0];
       if (!file) return;
-      document.getElementById("bg-filename").textContent = file.name;
       const form = new FormData();
       form.append("background", file);
       const res = await fetch("/upload-background", { method: "POST", body: form });
