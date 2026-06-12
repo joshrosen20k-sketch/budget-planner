@@ -50,6 +50,11 @@
         </div>
         <label>Sales Tax Rate</label>
         <span id="tax-display" class="cyan">{% if tax_rate is not none %}{{ tax_rate }}%{% else %}Not set{% endif %}</span>
+        <label>Weekly Budget ($)</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="spending-limit-input" placeholder="e.g. 50" value="{{ spending_limit if spending_limit else '' }}" style="width:100px;" />
+          <button class="btn-secondary" onclick="saveSpendingLimit()">Save</button>
+        </div>
       </div>
       <label class="upload-label" style="margin-top:14px;">
         Change Background
@@ -64,6 +69,7 @@
           <button class="theme-swatch" data-theme="ember"  title="🔥 Ember"      onclick="setTheme('ember')"  style="background:linear-gradient(135deg,#c05621,#ed8936)"></button>
           <button class="theme-swatch" data-theme="coral"  title="🪸 Coral Reef" onclick="setTheme('coral')"  style="background:linear-gradient(135deg,#c05621,#fc8c5a,#4fd1c5)"></button>
           <button class="theme-swatch" data-theme="solar"  title="☀️ Solar"      onclick="setTheme('solar')"  style="background:linear-gradient(135deg,#b7791f,#f6e05e)"></button>
+          <button class="theme-swatch" data-theme="light"  title="🌤️ Light"      onclick="setTheme('light')"  style="background:linear-gradient(135deg,#e2e8f0,#ffffff);border:1.5px solid #cbd5e0;"></button>
         </div>
       </div>
       <div style="margin-top:20px;">
@@ -133,6 +139,8 @@
       <div class="form-grid">
         <label>Amount ($)</label>
         <input type="number" id="savings-input" placeholder="e.g. 25" />
+        <label>Note (optional)</label>
+        <input type="text" id="savings-note" placeholder="e.g. birthday money" />
       </div>
       <div style="display:flex;gap:10px;margin-top:16px;">
         <button class="btn-primary" style="margin-bottom:0" onclick="confirmAddSavings()">Add</button>
@@ -191,6 +199,7 @@
     let currentTaxRate = {{ tax_rate if tax_rate is not none else 0 }};
     const celebratedGoals = new Set();
     let awayPeriods = {{ (away_periods if away_periods is defined else []) | tojson }};
+    let spendingLimit = {{ spending_limit if spending_limit is not none else 0 }};
 
     function formatNum(n) {
       return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -228,12 +237,30 @@
       slot.innerHTML = `
         <div class="card" style="margin-bottom:20px;">
           <h2>Your Goals (${goals.length})</h2>
-          ${goals.map(g => `
-            <div class="summary-row">
+          ${goals.map((g, i) => `
+            <div class="summary-row" style="align-items:center;">
               <span>${g.name}</span>
-              <span>$${formatNum(g.cost)}</span>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span>$${formatNum(g.cost)}</span>
+                <div style="display:flex;flex-direction:column;gap:1px;">
+                  <button onclick="moveGoal(${i},-1)" style="background:none;border:none;color:var(--c-text-dim);cursor:pointer;font-size:0.65rem;padding:0 4px;line-height:1.2;opacity:${i===0?0.2:1};">▲</button>
+                  <button onclick="moveGoal(${i},1)" style="background:none;border:none;color:var(--c-text-dim);cursor:pointer;font-size:0.65rem;padding:0 4px;line-height:1.2;opacity:${i===goals.length-1?0.2:1};">▼</button>
+                </div>
+              </div>
             </div>`).join("")}
         </div>`;
+    }
+
+    async function moveGoal(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= goals.length) return;
+      [goals[index], goals[newIndex]] = [goals[newIndex], goals[index]];
+      fetch("/reorder-goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goals }),
+      });
+      renderHomeGoals();
     }
 
     renderHomeGoals();
@@ -359,6 +386,17 @@
       const data = await res.json();
       currentTaxRate = data.tax_rate;
       document.getElementById("tax-display").textContent = `${data.tax_rate}% (${data.state})`;
+    }
+
+    async function saveSpendingLimit() {
+      const val = parseFloat(document.getElementById("spending-limit-input").value) || 0;
+      spendingLimit = val;
+      await fetch("/save-spending-limit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spending_limit: val }),
+      });
+      showToast(val > 0 ? `Weekly budget set to $${formatNum(val)}` : "Weekly budget cleared.");
     }
 
     function showPage(name) {
@@ -643,7 +681,10 @@
         <h2>Savings Log</h2>
         ${savingsHistory.map((e, i) => `
           <div class="history-row">
-            <span class="green" style="font-weight:600;">+$${formatNum(e.amount)}</span>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="green" style="font-weight:600;">+$${formatNum(e.amount)}</span>
+              ${e.note ? `<span style="font-size:0.75rem;color:var(--c-text-dim);font-style:italic;">${e.note}</span>` : ''}
+            </div>
             <span class="history-date">${e.date}</span>
             <span style="color:var(--c-text-dim);font-size:0.8rem;">total $${formatNum(totals[i])}</span>
             <button class="history-delete-btn" onclick="deleteSavings(${i})">✕</button>
@@ -654,18 +695,20 @@
 
     function addSavings() {
       document.getElementById("savings-input").value = "";
+      document.getElementById("savings-note").value = "";
       document.getElementById("savings-modal").style.display = "flex";
       setTimeout(() => document.getElementById("savings-input").focus(), 50);
     }
 
     async function confirmAddSavings() {
       const amount = parseFloat(document.getElementById("savings-input").value);
+      const note = document.getElementById("savings-note").value.trim();
       if (!amount || amount <= 0) return;
       document.getElementById("savings-modal").style.display = "none";
       const res = await fetch("/add-savings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, note }),
       });
       const data = await res.json();
       document.getElementById("balance").value = data.balance;
@@ -860,6 +903,9 @@
         <div class="summary-row"><span>Spendable income</span><span>$${formatNum(summary.spendable)}</span></div>
         <div class="summary-row"><span>That's per week</span><span class="cyan">$${formatNum(summary.weekly)}</span></div>
         <div class="summary-row"><span>That's per day</span><span class="cyan">$${formatNum(summary.daily)}</span></div>
+        ${spendingLimit > 0 ? `
+        <div class="summary-row"><span>Weekly budget</span><span>$${formatNum(spendingLimit)}/week</span></div>
+        <div class="summary-row"><span>Budget status</span><span class="${summary.weekly >= spendingLimit ? 'green' : 'red'}">${summary.weekly >= spendingLimit ? `✅ $${formatNum(summary.weekly - spendingLimit)} to spare` : `⚠️ $${formatNum(spendingLimit - summary.weekly)} short`}</span></div>` : ''}
         <div class="summary-row"><span>Total payment plans</span><span class="red">-$${formatNum(summary.total_monthly_payments)}</span></div>
         <div class="summary-divider"></div>
         <div class="summary-row summary-total"><span>Left each month</span><span class="${summary.left_after_all >= 0 ? 'green' : 'red'}">$${formatNum(summary.left_after_all)}</span></div>

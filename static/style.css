@@ -127,6 +127,27 @@ body.theme-solar {
   --c-tab-inactive: rgba(235, 218, 190, 0.6);
 }
 
+body.theme-light {
+  --c-bg: #f0f4f8;
+  --c-surface: rgba(255, 255, 255, 0.97);
+  --c-surface-deep: rgba(226, 232, 240, 0.97);
+  --c-surface-mid: rgba(215, 225, 236, 0.8);
+  --c-surface-lite: rgba(203, 213, 224, 0.6);
+  --c-border: rgba(100, 130, 180, 0.18);
+  --c-border-hi: rgba(100, 130, 180, 0.4);
+  --c-accent: #2b6cb0;
+  --c-accent-faint: rgba(43, 108, 176, 0.1);
+  --c-text: #1a202c;
+  --c-text-dim: #4a5568;
+  --c-overlay: rgba(240, 244, 248, 0.08);
+  --c-btn: linear-gradient(135deg, #2b6cb0, #4299e1);
+  --c-btn-glow: rgba(66, 153, 225, 0.35);
+  --c-title: linear-gradient(135deg, #2b6cb0 0%, #3182ce 50%, #553c9a 100%);
+  --c-progress: linear-gradient(90deg, #2b6cb0, #48bb78, #63b3ed, #48bb78, #2b6cb0);
+  --c-tab-active: rgba(255, 255, 255, 0.99);
+  --c-tab-inactive: rgba(215, 225, 236, 0.65);
+}
+
 /* ========= BASE ========= */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

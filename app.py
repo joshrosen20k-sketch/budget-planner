@@ -60,8 +60,9 @@ def load_data():
                 "monthly_income": row.get("monthly_income") or 0,
                 "monthly_expenses": row.get("monthly_expenses") or 0,
                 "theme": row.get("theme") or "ocean",
+                "spending_limit": row.get("spending_limit") or 0,
             }
-        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0, "savings_history": [], "monthly_income": 0, "monthly_expenses": 0, "theme": "ocean"}
+        return {"goals": [], "background": None, "state": None, "tax_rate": None, "away_periods": [], "balance": 0, "savings_history": [], "monthly_income": 0, "monthly_expenses": 0, "theme": "ocean", "spending_limit": 0}
     if os.path.exists(SAVE_FILE):
         with open(SAVE_FILE, "r") as f:
             return json.load(f)
@@ -83,6 +84,7 @@ def save_data(data):
             "monthly_income": data.get("monthly_income", 0),
             "monthly_expenses": data.get("monthly_expenses", 0),
             "theme": data.get("theme", "ocean"),
+            "spending_limit": data.get("spending_limit", 0),
         }
         if result.data:
             sb.table("budget_data").update(payload).eq("id", 1).execute()
@@ -153,7 +155,7 @@ def calc_adjusted_months(needed, spendable, away_periods):
 @app.route("/")
 def index():
     data = load_data()
-    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []), monthly_income=data.get("monthly_income", 0), monthly_expenses=data.get("monthly_expenses", 0), theme=data.get("theme", "ocean"))
+    return render_template("index.html", goals=data["goals"], background=data.get("background"), state=data.get("state"), tax_rate=data.get("tax_rate"), away_periods=data.get("away_periods", []), balance=data.get("balance", 0), savings_history=data.get("savings_history", []), monthly_income=data.get("monthly_income", 0), monthly_expenses=data.get("monthly_expenses", 0), theme=data.get("theme", "ocean"), spending_limit=data.get("spending_limit", 0))
 
 
 @app.route("/save-theme", methods=["POST"])
@@ -370,6 +372,23 @@ def edit_goal():
     return jsonify({"ok": True})
 
 
+@app.route("/save-spending-limit", methods=["POST"])
+def save_spending_limit():
+    limit = float(request.json.get("spending_limit") or 0)
+    data = load_data()
+    data["spending_limit"] = limit
+    save_data(data)
+    return jsonify({"ok": True})
+
+
+@app.route("/reorder-goals", methods=["POST"])
+def reorder_goals():
+    data = load_data()
+    data["goals"] = request.json["goals"]
+    save_data(data)
+    return jsonify({"ok": True})
+
+
 @app.route("/add-away-period", methods=["POST"])
 def add_away_period():
     body = request.json
@@ -501,7 +520,7 @@ def add_savings():
     new_balance = round(current + amount, 2)
     data["balance"] = new_balance
     history = data.get("savings_history") or []
-    history.insert(0, {"date": date.today().isoformat(), "amount": amount})
+    history.insert(0, {"date": date.today().isoformat(), "amount": amount, "note": body.get("note", "")})
     data["savings_history"] = history[:50]
     save_data(data)
     return jsonify({"balance": new_balance, "history": data["savings_history"]})
