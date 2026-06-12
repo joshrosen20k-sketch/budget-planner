@@ -42,7 +42,10 @@ STATE_TAX_RATES = {
 
 def load_data():
     if USE_SUPABASE:
-        result = sb.table("budget_data").select("*").eq("id", 1).execute()
+        for _ in range(3):
+            result = sb.table("budget_data").select("*").eq("id", 1).execute()
+            if result.data:
+                break
         if result.data:
             row = result.data[0]
             return {
