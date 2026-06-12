@@ -423,6 +423,20 @@ def send_reminder():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/delete-savings", methods=["POST"])
+def delete_savings():
+    index = request.json["index"]
+    data = load_data()
+    history = data.get("savings_history") or []
+    if 0 <= index < len(history):
+        removed = float(history[index]["amount"])
+        history.pop(index)
+        data["balance"] = round(max(0, float(data.get("balance") or 0) - removed), 2)
+    data["savings_history"] = history
+    save_data(data)
+    return jsonify({"ok": True, "balance": data["balance"], "history": history})
+
+
 @app.route("/add-savings", methods=["POST"])
 def add_savings():
     body = request.json

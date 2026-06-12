@@ -109,6 +109,17 @@
     </div>
   </div>
 
+  <!-- CONFIRM MODAL -->
+  <div id="confirm-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(5,10,30,0.85);align-items:center;justify-content:center;">
+    <div class="card" style="width:320px;max-width:90vw;text-align:center;">
+      <p id="confirm-message" style="font-size:1rem;margin-bottom:20px;color:var(--c-text);">Are you sure?</p>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-primary" id="confirm-yes" style="margin-bottom:0;background:linear-gradient(135deg,#c53030,#fc8181);">Delete</button>
+        <button class="btn-secondary" id="confirm-no" style="flex:1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- NEW GOAL PAGE -->
   <div class="container hidden" id="page-new-goal">
     <div class="page-header">
@@ -149,6 +160,28 @@
     document.querySelectorAll('.theme-swatch').forEach(s => {
       s.classList.toggle('active', s.dataset.theme === '{{ theme or "ocean" }}');
     });
+
+    function showConfirm(message, onYes) {
+      document.getElementById("confirm-message").textContent = message;
+      const modal = document.getElementById("confirm-modal");
+      modal.style.display = "flex";
+      document.getElementById("confirm-yes").onclick = () => { modal.style.display = "none"; onYes(); };
+      document.getElementById("confirm-no").onclick  = () => { modal.style.display = "none"; };
+    }
+
+    async function deleteSavings(index) {
+      showConfirm("Remove this savings entry? Your balance will be reduced.", async () => {
+        const res = await fetch("/delete-savings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ index }),
+        });
+        const data = await res.json();
+        document.getElementById("balance").value = data.balance;
+        savingsHistory = data.history;
+        calculate();
+      });
+    }
 
     async function setTheme(theme) {
       document.body.className = document.body.className
@@ -324,7 +357,15 @@
     function renderChart(currentBalance) {
       const existing = document.getElementById("chart-card");
       if (existing) existing.remove();
-      if (!savingsHistory.length) return;
+      if (!savingsHistory.length) {
+        const empty = document.createElement("div");
+        empty.className = "card summary-card card-accent-purple card-enter";
+        empty.style.setProperty('--card-delay', '60ms');
+        empty.id = "chart-card";
+        empty.innerHTML = `<h2>Allowance Fluctuations</h2><p style="color:var(--c-text-dim);text-align:center;padding:24px 0;">No savings logged yet — tap <strong style="color:var(--c-accent);">➕ I saved money!</strong> to start tracking.</p>`;
+        document.getElementById("results").appendChild(empty);
+        return;
+      }
 
       const chronological = [...savingsHistory].reverse();
       let running = 0;
@@ -422,16 +463,26 @@
       const existing = document.getElementById("history-card");
       if (existing) existing.remove();
       if (!savingsHistory.length) return;
+
+      // Compute running totals oldest→newest, display newest→oldest
+      let cum = 0;
+      const totals = [...savingsHistory].reverse().map(e => {
+        cum = Math.round((cum + parseFloat(e.amount)) * 100) / 100;
+        return cum;
+      }).reverse();
+
       const card = document.createElement("div");
       card.className = "card summary-card card-accent-green card-enter";
       card.style.setProperty('--card-delay', '0ms');
       card.id = "history-card";
       card.innerHTML = `
         <h2>Savings Log</h2>
-        ${savingsHistory.map(e => `
-          <div class="summary-row">
-            <span>${e.date}</span>
-            <span class="green">+$${parseFloat(e.amount).toFixed(2)}</span>
+        ${savingsHistory.map((e, i) => `
+          <div class="history-row">
+            <span class="green" style="font-weight:600;">+$${parseFloat(e.amount).toFixed(2)}</span>
+            <span class="history-date">${e.date}</span>
+            <span style="color:var(--c-text-dim);font-size:0.8rem;">total $${totals[i].toFixed(2)}</span>
+            <button class="history-delete-btn" onclick="deleteSavings(${i})">✕</button>
           </div>`).join("")}
       `;
       document.getElementById("results").appendChild(card);
@@ -597,15 +648,16 @@
         panel.innerHTML = contentHTML;
         panel.insertBefore(btnRow, panel.firstChild);
 
-        deleteBtn.onclick = async () => {
-          if (!confirm(`Delete "${r.name}"?`)) return;
-          await fetch("/delete-goal", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index: r.goal_index }),
+        deleteBtn.onclick = () => {
+          showConfirm(`Delete "${r.name}"?`, async () => {
+            await fetch("/delete-goal", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ index: r.goal_index }),
+            });
+            goals.splice(r.goal_index, 1);
+            calculate();
           });
-          goals.splice(r.goal_index, 1);
-          calculate();
         };
         panel.appendChild(deleteBtn);
         container.appendChild(panel);

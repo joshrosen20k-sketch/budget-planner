@@ -596,3 +596,35 @@ body {
 .card-accent-gold   { border-top: 2px solid rgba(246, 196, 89, 0.65); box-shadow: 0 0 20px rgba(246, 196, 89, 0.07); }
 .card-accent-purple { border-top: 2px solid rgba(159, 122, 234, 0.65); }
 .card-accent-blue   { border-top: 2px solid var(--c-border-hi); }
+
+/* ========= HISTORY LOG ========= */
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--c-border);
+  font-size: 0.9rem;
+}
+
+.history-row:last-child { border-bottom: none; }
+.history-date { color: var(--c-text-dim); flex: 1; }
+
+.history-delete-btn {
+  background: none;
+  border: none;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+  opacity: 0.4;
+}
+
+.history-delete-btn:hover {
+  color: #fc8181;
+  background: rgba(252,129,129,0.12);
+  opacity: 1;
+}
