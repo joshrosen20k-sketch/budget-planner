@@ -66,6 +66,18 @@
           <button class="theme-swatch" data-theme="solar"  title="☀️ Solar"      onclick="setTheme('solar')"  style="background:linear-gradient(135deg,#b7791f,#f6e05e)"></button>
         </div>
       </div>
+      <div style="margin-top:20px;">
+        <div style="font-size:0.875rem;color:var(--c-text-dim);margin-bottom:6px;">Away Periods</div>
+        <div id="away-periods-list"></div>
+        <div style="display:grid;gap:8px;margin-top:4px;">
+          <input type="text" id="away-name" placeholder="e.g. Summer Camp" />
+          <div style="display:flex;gap:8px;">
+            <input type="date" id="away-start" style="flex:1;" />
+            <input type="date" id="away-end" style="flex:1;" />
+          </div>
+          <button class="btn-secondary" onclick="addAwayPeriod()">+ Add Period</button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -143,7 +155,7 @@
   <!-- NEW GOAL PAGE -->
   <div class="container hidden" id="page-new-goal">
     <div class="page-header">
-      <button class="btn-back" onclick="showPage('home')">← Back</button>
+      <button class="btn-back" onclick="backFromNewGoal()">← Back</button>
       <h1 class="title">New Goal</h1>
     </div>
 
@@ -178,6 +190,7 @@
     let goals = savedGoals.slice();
     let currentTaxRate = {{ tax_rate if tax_rate is not none else 0 }};
     const celebratedGoals = new Set();
+    let awayPeriods = {{ (away_periods if away_periods is defined else []) | tojson }};
 
     function formatNum(n) {
       return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -224,6 +237,57 @@
     }
 
     renderHomeGoals();
+    renderAwayPeriods();
+
+    function renderAwayPeriods() {
+      const list = document.getElementById("away-periods-list");
+      if (!list) return;
+      if (!awayPeriods.length) {
+        list.innerHTML = '<p style="color:var(--c-text-dim);font-size:0.8rem;margin:4px 0 8px;">No away periods yet.</p>';
+        return;
+      }
+      list.innerHTML = awayPeriods.map((p, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.07);">
+          <div>
+            <span style="font-weight:600;">${p.name}</span>
+            <span style="font-size:0.78rem;color:var(--c-text-dim);margin-left:8px;">${p.start} → ${p.end}</span>
+          </div>
+          <button class="history-delete-btn" onclick="deleteAwayPeriod(${i})">✕</button>
+        </div>`).join("");
+    }
+
+    async function addAwayPeriod() {
+      const name = document.getElementById("away-name").value.trim();
+      const start = document.getElementById("away-start").value;
+      const end = document.getElementById("away-end").value;
+      if (!name || !start || !end) return showToast("Fill in name, start date, and end date.");
+      if (end < start) return showToast("End date must be after start date.");
+      const res = await fetch("/add-away-period", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, start, end }),
+      });
+      const data = await res.json();
+      awayPeriods = data.away_periods;
+      document.getElementById("away-name").value = "";
+      document.getElementById("away-start").value = "";
+      document.getElementById("away-end").value = "";
+      renderAwayPeriods();
+      showToast("Away period added!");
+    }
+
+    async function deleteAwayPeriod(index) {
+      showConfirm("Remove this away period?", async () => {
+        const res = await fetch("/delete-away-period", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ index }),
+        });
+        const data = await res.json();
+        awayPeriods = data.away_periods;
+        renderAwayPeriods();
+      });
+    }
 
     // Mark active theme swatch on load
     document.querySelectorAll('.theme-swatch').forEach(s => {
@@ -300,6 +364,21 @@
       document.querySelectorAll(".container").forEach(el => el.classList.add("hidden"));
       document.getElementById("page-" + name).classList.remove("hidden");
       if (name === "home") renderHomeGoals();
+    }
+
+    function backFromNewGoal() {
+      const name = document.getElementById("new-name").value.trim();
+      const cost = document.getElementById("new-cost").value.trim();
+      if (name || cost) {
+        showConfirm("Go back? You'll lose what you typed.", () => {
+          ["new-name","new-cost","new-payment","new-url","new-deadline"].forEach(id => {
+            document.getElementById(id).value = "";
+          });
+          showPage("home");
+        });
+      } else {
+        showPage("home");
+      }
     }
 
     function setNewPlanType(btn) {
@@ -428,6 +507,11 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ index: editingIndex, name, cost, plan_type: planType, monthly_payment, url, deadline }),
       });
+      const oldName = goals[editingIndex].name;
+      if (oldName !== name && celebratedGoals.has(oldName)) {
+        celebratedGoals.delete(oldName);
+        celebratedGoals.add(name);
+      }
       goals[editingIndex] = { ...goals[editingIndex], name, cost, plan_type: planType, monthly_payment, url, deadline };
       closeEditModal();
       calculate();

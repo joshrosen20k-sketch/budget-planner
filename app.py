@@ -370,6 +370,31 @@ def edit_goal():
     return jsonify({"ok": True})
 
 
+@app.route("/add-away-period", methods=["POST"])
+def add_away_period():
+    body = request.json
+    data = load_data()
+    data.setdefault("away_periods", []).append({
+        "name": body["name"],
+        "start": body["start"],
+        "end": body["end"],
+    })
+    save_data(data)
+    return jsonify({"ok": True, "away_periods": data["away_periods"]})
+
+
+@app.route("/delete-away-period", methods=["POST"])
+def delete_away_period():
+    index = request.json["index"]
+    data = load_data()
+    periods = data.get("away_periods") or []
+    if 0 <= index < len(periods):
+        periods.pop(index)
+    data["away_periods"] = periods
+    save_data(data)
+    return jsonify({"ok": True, "away_periods": periods})
+
+
 @app.route("/add-goal", methods=["POST"])
 def add_goal():
     body = request.json
