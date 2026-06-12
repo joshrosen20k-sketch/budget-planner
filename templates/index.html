@@ -76,9 +76,10 @@
       <button class="btn-back" onclick="showPage('home')">← Edit</button>
       <h1 class="title">Your Goals</h1>
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:20px;">
+    <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
       <button class="btn-primary" onclick="addSavings()" style="margin-bottom:0;">➕ I saved money!</button>
       <button class="btn-secondary" id="notify-btn" onclick="enableNotifications()" style="white-space:nowrap">🔔 Remind me</button>
+      <span id="streak-display" style="font-size:0.9rem;font-weight:600;color:var(--c-accent);"></span>
     </div>
     <div id="results"></div>
   </div>
@@ -179,6 +180,31 @@
 
     function formatNum(n) {
       return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getMondayWeekNum(dateStr) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const d = new Date(year, month - 1, day);
+      const dow = d.getDay() || 7;
+      d.setDate(d.getDate() - (dow - 1));
+      return Math.floor(d.getTime() / (7 * 24 * 60 * 60 * 1000));
+    }
+
+    function calculateStreaks(history) {
+      if (!history.length) return { current: 0, best: 0 };
+      const weekNums = [...new Set(history.map(e => getMondayWeekNum(e.date)))].sort((a, b) => a - b);
+      let best = 1, run = 1;
+      for (let i = 1; i < weekNums.length; i++) {
+        if (weekNums[i] === weekNums[i - 1] + 1) { run++; if (run > best) best = run; }
+        else run = 1;
+      }
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      const thisWeek = getMondayWeekNum(todayStr);
+      const weekSet = new Set(weekNums);
+      let current = 0, check = weekSet.has(thisWeek) ? thisWeek : thisWeek - 1;
+      while (weekSet.has(check)) { current++; check--; }
+      return { current, best: Math.max(best, current) };
     }
 
     function renderHomeGoals() {
@@ -579,6 +605,12 @@
       const container = document.getElementById("results");
       container.innerHTML = "";
 
+      const { current: streakCurrent, best: streakBest } = calculateStreaks(savingsHistory);
+      const streakEl = document.getElementById("streak-display");
+      if (streakEl) {
+        streakEl.textContent = streakCurrent > 0 ? `🔥 ${streakCurrent}-week streak!` : "";
+      }
+
       if (results.length === 0) return;
 
       // Celebrate any reached goals
@@ -605,6 +637,8 @@
         <div class="summary-row"><span>Saved so far</span><span class="green">$${formatNum(summary.total_saved)}</span></div>
         <div class="summary-row"><span>Still needed</span><span class="red">$${formatNum(stillNeeded)}</span></div>
         <div class="summary-row"><span>Goals reached</span><span class="cyan">${summary.goals_reached} of ${summary.goals_count}</span></div>
+        <div class="summary-row"><span>Current streak</span><span class="yellow">${streakCurrent > 0 ? '🔥 ' + streakCurrent + ' week' + (streakCurrent === 1 ? '' : 's') : '—'}</span></div>
+        <div class="summary-row"><span>Best streak</span><span class="yellow">${streakBest > 0 ? '🏆 ' + streakBest + ' week' + (streakBest === 1 ? '' : 's') : '—'}</span></div>
         <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${summary.overall_pct}%"></div></div>
         <div class="progress-label">${summary.overall_pct}% of the way to everything</div>
       `;
