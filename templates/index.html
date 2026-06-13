@@ -447,14 +447,22 @@
       const cost = document.getElementById("new-cost").value.trim();
       if (name || cost) {
         showConfirm("Go back? You'll lose what you typed.", () => {
-          ["new-name","new-cost","new-payment","new-url","new-deadline"].forEach(id => {
-            document.getElementById(id).value = "";
-          });
+          resetNewGoalForm();
           showPage("home");
         }, "Leave");
       } else {
         showPage("home");
       }
+    }
+
+    function resetNewGoalForm() {
+      ["new-name","new-cost","new-payment","new-url","new-deadline"].forEach(id => {
+        document.getElementById(id).value = "";
+      });
+      document.querySelectorAll("#page-new-goal .toggle-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.val === "save");
+      });
+      document.getElementById("new-payment-fields").style.display = "none";
     }
 
     function setNewPlanType(btn) {
@@ -484,12 +492,7 @@
         body: JSON.stringify(newGoal),
       });
 
-      document.getElementById("new-name").value = "";
-      document.getElementById("new-cost").value = "";
-      document.getElementById("new-payment").value = "";
-      document.getElementById("new-url").value = "";
-      document.getElementById("new-deadline").value = "";
-
+      resetNewGoalForm();
       showPage("home");
     }
 
